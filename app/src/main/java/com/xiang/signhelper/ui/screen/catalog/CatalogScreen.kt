@@ -119,15 +119,19 @@ fun CatalogScreen(
     // 从「选择已安装应用」二级页回来：读签名 → 入库 → 弹编辑框。
     LaunchedEffect(pendingInstalledPackage) {
         val packageName = pendingInstalledPackage ?: return@LaunchedEffect
-        onPendingInstalledConsumed()
+        // 注意：这里**先**读签名、入库，最后才 consume。
+        // 如果在 withContext 之前就把 pending 清空，key 从包名变成 null 会立刻
+        // 取消这个 effect，签名根本没读、条目也不会进列表。
         val meta = withContext(Dispatchers.IO) {
             runCatching { SignatureUtil.readInstalledApp(context, packageName) }.getOrNull()
         }
         if (meta == null) {
             pickError = failedInstalledText
+            onPendingInstalledConsumed()
             return@LaunchedEffect
         }
         editing = upsert(meta)
+        onPendingInstalledConsumed()
     }
 
     // SAF 选 APK。用 OpenDocument 而不是 GetContent：不需要 READ_EXTERNAL_STORAGE，
