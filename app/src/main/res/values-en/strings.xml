@@ -61,4 +61,6 @@
     <string name="installed_permission_settings">Open app settings</string>
     <string name="installed_permission_later">Not now</string>
     <string name="installed_permission_banner">“App list” permission is off — tap to open app settings</string>
+    <string name="about_credit_xihan">xihan (original author)</string>
+    <string name="about_credit_xihan_unknown">The original author link is currently unknown</string>
 </resources>

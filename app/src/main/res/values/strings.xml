@@ -67,4 +67,6 @@
     <string name="installed_permission_settings">打开应用设置</string>
     <string name="installed_permission_later">暂不</string>
     <string name="installed_permission_banner">未开启「获取应用列表」权限，点此去应用设置开启</string>
+    <string name="about_credit_xihan">xihan（原版作者）</string>
+    <string name="about_credit_xihan_unknown">暂不清楚原作者的相关链接</string>
 </resources>

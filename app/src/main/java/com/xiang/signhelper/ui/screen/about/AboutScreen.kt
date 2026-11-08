@@ -111,6 +111,9 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 @Composable
 fun AboutScreen(bottomPadding: Dp = 0.dp) {
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
+    // 原作者 xihan 的发布页/仓库暂时无从确认，点它时给一句说明而不是假装有链接。
+    val unknownAuthorLinkHint = stringResource(R.string.about_credit_xihan_unknown)
     val listState = rememberLazyListState()
     var headerHeightPx by remember { mutableIntStateOf(0) }
 
@@ -219,9 +222,20 @@ fun AboutScreen(bottomPadding: Dp = 0.dp) {
                 item {
                     AboutCard(blur = aboutBlur, modifier = Modifier.cardPadding()) {
                         ACKNOWLEDGEMENTS.forEach { entry ->
+                            val url = entry.url
                             ArrowPreference(
                                 title = stringResource(entry.title),
-                                onClick = { uriHandler.openUri(entry.url) },
+                                onClick = {
+                                    if (url != null) {
+                                        uriHandler.openUri(url)
+                                    } else {
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            unknownAuthorLinkHint,
+                                            android.widget.Toast.LENGTH_SHORT,
+                                        ).show()
+                                    }
+                                },
                             )
                         }
                     }
@@ -429,13 +443,14 @@ private const val ICON_PX = 192
 private fun fadeOut(progress: Float, start: Float, end: Float): Float =
     1f - ((progress - start) / (end - start)).coerceIn(0f, 1f)
 
-/** 一个致谢条目：名称 + 仓库地址（不再写一堆说明，保持关于页清爽）。 */
+/** 一个致谢条目：名称 + 可选仓库地址（没有地址的只显示名字）。 */
 private data class Acknowledgement(
     @param:StringRes val title: Int,
-    val url: String,
+    val url: String? = null,
 )
 
 private val ACKNOWLEDGEMENTS = listOf(
+    Acknowledgement(title = R.string.about_credit_xihan),
     Acknowledgement(
         title = R.string.about_lib_miuix,
         url = "https://github.com/compose-miuix-ui/miuix",

@@ -6,7 +6,7 @@
 - 基于 **libxposed API 102**（`minApiVersion=102`）
 - UI 使用 **Miuix**（Compose，澎湃 OS / MIUI 风格），只有「应用目录」「关于」两页
 - 默认作用域：微信 `com.tencent.mm`、QQ `com.tencent.mobileqq`，可在 LSPosed 里加任意应用
-- 作者：xiangfa
+- 作者：xiangfa；原版 `cn.xihan.sign` 作者：xihan
 
 ## 功能
 
@@ -16,7 +16,7 @@
 - **Hook**：后置拦截 `ApplicationPackageManager#getPackageInfo(String, int)` 与
   `getPackageInfo(String, PackageInfoFlags)`；命中伪造表时替换 `PackageInfo.signatures`，
   异常全部 PROTECTIVE，不影响宿主
-- **关于页**：构建时间、作者、致谢（Miuix / libxposed / LSPosed）
+- **关于页**：构建时间、作者、致谢（xihan / Miuix / libxposed / LSPosed）
 
 ## 构建
 
@@ -50,19 +50,9 @@
 - `forged_packages`：生效中的包名（`\n` 分隔）
 - `sig:<包名>`：该包的伪造签名（hex）
 
-## 版本
-
-- `versionName`：`version.properties` 的 `name`，发版时手改（当前 `0.1.0`）
-- `versionCode`：构建时取 `git rev-list --count HEAD`
-
-## 已知限制
-
-- 只替换 `PackageInfo.signatures`，不处理 `signingInfo` / `checkSignatures`（与原版行为一致）
-- 改配置后需强制停止被 hook 的应用才会重新读取签名
-- 作用域在 LSPosed 里配置，代码不写死应用名
-
 ## License
 
 GPL-3.0（见 [LICENSE](LICENSE)）。
+
 
 
