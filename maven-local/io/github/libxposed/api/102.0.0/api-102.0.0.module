@@ -1,0 +1,78 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "io.github.libxposed",
+    "module": "api",
+    "version": "102.0.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.5.1"
+    }
+  },
+  "variants": [
+    {
+      "name": "releaseVariantReleaseApiPublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "api-102.0.0.aar",
+          "url": "api-102.0.0.aar",
+          "size": 30582,
+          "sha512": "a41e5fb73e24c3490d02a98446b9176ec164124d79874b1e89debbc5d748d915902b4a6558bc51691c390d0986d2e32d0404971aef2bf1567638b8d3efb43644",
+          "sha256": "423484a6e1807e7a423c4b88fcd8176d104318259d91791877fed88fe91479d0",
+          "sha1": "cfded6d221db78fadd94d90cffaee5417a2e2047",
+          "md5": "0d3c1508a5fdd1f3fe4bb6c101de62c2"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseRuntimePublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "api-102.0.0.aar",
+          "url": "api-102.0.0.aar",
+          "size": 30582,
+          "sha512": "a41e5fb73e24c3490d02a98446b9176ec164124d79874b1e89debbc5d748d915902b4a6558bc51691c390d0986d2e32d0404971aef2bf1567638b8d3efb43644",
+          "sha256": "423484a6e1807e7a423c4b88fcd8176d104318259d91791877fed88fe91479d0",
+          "sha1": "cfded6d221db78fadd94d90cffaee5417a2e2047",
+          "md5": "0d3c1508a5fdd1f3fe4bb6c101de62c2"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseSourcePublication",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "api-102.0.0-sources.jar",
+          "url": "api-102.0.0-sources.jar",
+          "size": 16059,
+          "sha512": "d2c4cfb9766ec21c13c27bcae65f581e1113cf09bb0277d4acbe238315f9674ff962f581d905bc19842e1137aab6950a7556623e073880ebe8303d1063a8afcd",
+          "sha256": "c4a5761c2409f411ca0f67983a687fbd9dd9a76250d7a68ab7cb2950c820444e",
+          "sha1": "c8199860188a47d387778334677c819189fb20a4",
+          "md5": "e6db2a1d9feca6dea7d2e4a30d4efeb8"
+        }
+      ]
+    }
+  ]
+}

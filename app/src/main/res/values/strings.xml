@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Xposed 模块元数据：manifest 的 label / description 都读这两条 -->
+    <string name="AppName">签名助手</string>
+    <string name="XposedDesc">对简单签名校验通杀</string>
+
+    <!-- 底部导航的两个页签 -->
+    <string name="page_catalog">应用目录</string>
+    <string name="page_about">关于</string>
+
+    <!-- 通用按钮 -->
+    <string name="common_ok">确定</string>
+    <string name="common_cancel">取消</string>
+    <string name="common_back">返回</string>
+    <string name="common_delete">删除</string>
+    <string name="common_clear">清空</string>
+
+    <!-- 应用目录 -->
+    <string name="catalog_menu_sort">排序</string>
+    <string name="catalog_menu_more">更多</string>
+    <string name="catalog_pick_installed">选择已安装应用</string>
+    <string name="catalog_pick_installed_summary">直接从本机已安装的应用里选一个，读取它当前的签名</string>
+    <string name="catalog_pick_installed_failed">读取该已安装应用的签名失败，请重试。</string>
+    <string name="catalog_pick">选择 APK</string>
+    <string name="catalog_pick_summary">从存储中挑一个安装包，读取它的包名与原始签名</string>
+    <string name="catalog_pick_reading">正在读取安装包…</string>
+    <string name="catalog_pick_failed_title">读取失败</string>
+    <string name="catalog_pick_failed">无法读取该 APK 的包名或签名信息，请换一个文件再试。</string>
+    <string name="catalog_pick_no_picker">没有找到可用的文件选择器。</string>
+    <string name="catalog_clear">清空列表</string>
+    <string name="catalog_clear_summary">移除列表中的全部应用</string>
+    <string name="catalog_clear_title">清空列表</string>
+    <string name="catalog_clear_message">确定要移除列表里的全部应用吗？这只会清掉模块里的伪造配置，不会影响已安装的应用。</string>
+    <string name="catalog_list_title">应用列表（%1$d）</string>
+    <string name="catalog_empty">空空如也</string>
+    <string name="catalog_empty_hint">还没有任何应用。点上面的「选择已安装应用」或「选择 APK」把目标加进来，再填写要伪造的签名。</string>
+    <string name="installed_picker_title">选择已安装应用</string>
+    <string name="installed_picker_search">搜索应用名或包名</string>
+    <string name="installed_picker_loading">正在读取已安装应用…</string>
+    <string name="installed_picker_empty">没有找到匹配的应用</string>
+    <string name="installed_filter_scope_user">用户</string>
+    <string name="installed_filter_scope_system">系统</string>
+    <string name="installed_filter_scope_all">全部</string>
+    <string name="installed_filter_sort_name">应用名称</string>
+    <string name="installed_filter_sort_updated">最后更新</string>
+    <string name="installed_filter_reverse">反向排序</string>
+    <string name="catalog_original_signature">原始签名：%1$s</string>
+    <string name="catalog_forged_signature">伪造签名：%1$s</string>
+    <string name="catalog_forged_unset">伪造签名：未设置（点击卡片填写）</string>
+    <string name="catalog_edit_title">编辑伪造签名</string>
+    <string name="catalog_edit_summary">%1$s（%2$s）\n只接受十六进制字符串，粘贴后会自动校验。</string>
+    <string name="catalog_edit_error">只能输入十六进制字符（0-9、a-f、A-F），且不能为空。</string>
+    <string name="catalog_delete_title">移除应用</string>
+    <string name="catalog_delete_message">确定要把「%1$s」从列表中移除吗？</string>
+
+    <!-- 关于 -->
+    <string name="about_build_time">构建时间</string>
+    <string name="about_author">作者</string>
+    <string name="about_author_name">xiangfa</string>
+    <string name="about_role_author">作者</string>
+    <string name="about_thanks">致谢</string>
+    <string name="about_lib_miuix">Miuix</string>
+    <string name="about_lib_xposed">libxposed</string>
+    <string name="about_lib_lsposed">LSPosed</string>
+</resources>

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="AppName">SignHelper</string>
+    <string name="XposedDesc">Bypass simple signature checks</string>
+
+    <string name="page_catalog">Applications</string>
+    <string name="page_about">About</string>
+
+    <string name="common_ok">OK</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_back">Back</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_clear">Clear</string>
+    <string name="catalog_menu_sort">Sort</string>
+    <string name="catalog_menu_more">More</string>
+    <string name="catalog_pick_installed">Choose installed app</string>
+    <string name="catalog_pick_installed_summary">Pick an app installed on this device and read its current signature</string>
+    <string name="catalog_pick_installed_failed">Could not read the signature of that installed app. Try again.</string>
+    <string name="catalog_pick">Choose APK</string>
+    <string name="catalog_pick_summary">Pick an installation package and read its package name and original signature</string>
+    <string name="catalog_pick_reading">Reading the package…</string>
+    <string name="catalog_pick_failed_title">Read failed</string>
+    <string name="catalog_pick_failed">Could not read the package name or signature of that APK. Try another file.</string>
+    <string name="catalog_pick_no_picker">No document picker is available.</string>
+    <string name="catalog_clear">Clear list</string>
+    <string name="catalog_clear_summary">Remove every application from the list</string>
+    <string name="catalog_clear_title">Clear list</string>
+    <string name="catalog_clear_message">Remove every application from the list? This only clears the module configuration; installed apps are not affected.</string>
+    <string name="catalog_list_title">Applications (%1$d)</string>
+    <string name="catalog_empty">Nothing here yet</string>
+    <string name="catalog_empty_hint">No applications yet. Tap “Choose installed app” or “Choose APK” above to add one, then fill in the signature to forge.</string>
+    <string name="installed_picker_title">Choose installed app</string>
+    <string name="installed_picker_search">Search by app name or package</string>
+    <string name="installed_picker_loading">Reading installed apps…</string>
+    <string name="installed_picker_empty">No matching apps</string>
+    <string name="installed_filter_scope_user">User</string>
+    <string name="installed_filter_scope_system">System</string>
+    <string name="installed_filter_scope_all">All</string>
+    <string name="installed_filter_sort_name">App name</string>
+    <string name="installed_filter_sort_updated">Last updated</string>
+    <string name="installed_filter_reverse">Reverse order</string>
+    <string name="catalog_original_signature">Original signature: %1$s</string>
+    <string name="catalog_forged_signature">Forged signature: %1$s</string>
+    <string name="catalog_forged_unset">Forged signature: not set (tap the card to fill it in)</string>
+    <string name="catalog_edit_title">Edit forged signature</string>
+    <string name="catalog_edit_summary">%1$s (%2$s)\nHex characters only; the value is validated as you paste.</string>
+    <string name="catalog_edit_error">Only hex characters (0-9, a-f, A-F) are allowed, and the value cannot be empty.</string>
+    <string name="catalog_delete_title">Remove application</string>
+    <string name="catalog_delete_message">Remove “%1$s” from the list?</string>
+
+    <string name="about_build_time">Build time</string>
+    <string name="about_author">Author</string>
+    <string name="about_author_name">xiangfa</string>
+    <string name="about_role_author">Author</string>
+    <string name="about_thanks">Acknowledgements</string>
+    <string name="about_lib_miuix">Miuix</string>
+    <string name="about_lib_xposed">libxposed</string>
+    <string name="about_lib_lsposed">LSPosed</string>
+</resources>

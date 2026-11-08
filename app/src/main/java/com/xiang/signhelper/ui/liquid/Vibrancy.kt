@@ -1,0 +1,30 @@
+// Copyright 2026, compose-miuix-ui contributors
+// SPDX-License-Identifier: Apache-2.0
+
+// ---------------------------------------------------------------------------
+// 来源：Miuix 官方示例 example/shared/src/commonMain/kotlin/component/
+//       （compose-miuix-ui/miuix，Apache-2.0）
+//       原始实现 Adapted from Kyant0/AndroidLiquidGlass (Apache 2.0)。
+//
+// 本文件为**逐字移植**，仅做两处改动：
+//   1. 包名 component.liquid / component.animation → com.xiang.signhelper.ui.liquid
+//   2. 按需替换对示例工程 ui.* 的依赖
+//
+// 许可：Apache-2.0。保留原版权与署名即为合规；本项目整体据此可继续闭源分发。
+// ---------------------------------------------------------------------------
+
+package com.xiang.signhelper.ui.liquid
+
+// Adapted from Kyant0/AndroidLiquidGlass — https://github.com/Kyant0/AndroidLiquidGlass (Apache 2.0).
+
+import top.yukonga.miuix.kmp.blur.BackdropEffectScope
+import top.yukonga.miuix.kmp.blur.colorControls
+
+/** Lightweight stand-in for Kyant's `vibrancy()`. */
+fun BackdropEffectScope.vibrancy() {
+    colorControls(
+        brightness = 0f,
+        contrast = 1f,
+        saturation = 1.5f,
+    )
+}

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      读别的应用的图标 / 包信息（SignatureUtil.loadAppIcon，以及"应用目录"里
+      展示条目对应的应用）。Android 11+ 必须声明 QUERY_ALL_PACKAGES 才看得到全部包。
+    -->
+    <uses-permission
+            android:name="android.permission.QUERY_ALL_PACKAGES"
+            tools:ignore="QueryAllPackagesPermission"/>
+
+    <!--
+      注意：现代 Xposed service provider
+      (io.github.libxposed.service.XposedProvider, authority ${applicationId}.XposedService)
+      由 io.github.libxposed:service 构件自带的 manifest 提供并自动 merge 进来，
+      这里不要再声明一遍 —— 重复声明会导致 manifest merge 失败。
+    -->
+    <application
+            android:name=".App"
+            android:allowBackup="false"
+            android:description="@string/XposedDesc"
+            android:icon="@drawable/ic_launcher"
+            android:label="@string/AppName"
+            android:roundIcon="@drawable/ic_launcher_round"
+            android:supportsRtl="true"
+            android:theme="@style/AppTheme">
+
+        <!--
+          同一个 Activity 同时是：
+            - 启动器入口（LAUNCHER）；
+            - Xposed 框架里点「设置」进来的入口（MODULE_SETTINGS）。
+          一个 intent-filter 里同时声明这两个 category 是合法且常用的做法：
+          intent 匹配只看 filter 里有没有该 category，多声明不会互相干扰。
+        -->
+        <activity
+                android:name=".ui.MainActivity"
+                android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
+                android:exported="true"
+                android:label="@string/AppName"
+                android:theme="@style/AppTheme"
+                android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+                <category android:name="de.robv.android.xposed.category.MODULE_SETTINGS"/>
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>
