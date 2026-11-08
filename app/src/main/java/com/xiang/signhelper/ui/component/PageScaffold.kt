@@ -189,6 +189,8 @@ fun MessageDialog(
     onDismiss: () -> Unit,
     confirmText: String? = null,
     onConfirm: (() -> Unit)? = null,
+    /** 左侧按钮文案；为 null 时用「取消」。 */
+    cancelText: String? = null,
 ) {
     OverlayDialog(
         show = show,
@@ -199,7 +201,7 @@ fun MessageDialog(
         Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)) {
             if (confirmText != null && onConfirm != null) {
                 TextButton(
-                    text = stringResource(R.string.common_cancel),
+                    text = cancelText ?: stringResource(R.string.common_cancel),
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f),
                 )

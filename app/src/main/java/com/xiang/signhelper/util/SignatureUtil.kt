@@ -55,32 +55,105 @@ object SignatureUtil {
     )
 
     /**
+     * 一次列取的结果。
+     *
+     * [restricted] = true 表示系统（MIUI / HyperOS）把「获取应用列表」权限关掉了：
+     * 此时 `getInstalledPackages` 只会返回应用自己，列表是**通过 intent 反查**拼出来的，
+     * 可能缺一些没有组件（activity/service/receiver/provider）的包，需要引导用户去开启权限。
+     */
+    data class InstalledAppsResult(
+        val apps: List<InstalledApp>,
+        val restricted: Boolean,
+    )
+
+    /**
      * 列出本机已安装的应用。
      *
-     * 依赖 `QUERY_ALL_PACKAGES` 权限（manifest 已声明）。读取失败时返回空列表。
+     * 常规路径用 `getInstalledPackages(0)`；在 MIUI / HyperOS 上如果「获取应用列表」
+     * 权限没开，这个 API 会**静默**只返回本应用自己。检测到这种情况就退回到 intent
+     * 反查（拿着包名再逐个 `getPackageInfo`，单包查询不受该限制），并把
+     * [InstalledAppsResult.restricted] 带出去给 UI 弹提示。
+     *
      * 这里**不排序**——筛选页自己按用户选择（用户/系统/全部 + 名称/最后更新 + 反向）排序。
      */
-    fun listInstalledApps(context: Context): List<InstalledApp> = runCatching {
+    fun listInstalledApps(context: Context): InstalledAppsResult {
         val pm = context.packageManager
-        @Suppress("DEPRECATION")
-        val packages = pm.getInstalledPackages(0)
-        packages.asSequence()
-            .filter { it.packageName != context.packageName }
-            .mapNotNull { info ->
-                val appInfo = info.applicationInfo ?: return@mapNotNull null
-                val label = runCatching { appInfo.loadLabel(pm).toString() }
-                    .getOrDefault(info.packageName)
-                    .ifBlank { info.packageName }
-                InstalledApp(
-                    packageName = info.packageName,
-                    label = label,
-                    isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
-                    lastUpdateTime = info.lastUpdateTime,
-                )
+        val startedAt = android.os.SystemClock.elapsedRealtime()
+        var restricted = false
+
+        val apps = runCatching {
+            @Suppress("DEPRECATION")
+            val packages = pm.getInstalledPackages(0)
+            // 只有自己 = 被系统限制（正常设备上随便也有几十个包）
+            restricted = packages.size <= 1
+            val names = if (restricted) {
+                LogX.w("读取已安装应用被系统限制，改用 intent 反查包名")
+                queryPackageNames(pm)
+            } else {
+                packages.map { it.packageName }
             }
-            .toList()
-    }.onFailure { LogX.e("读取已安装应用列表失败", it) }
-        .getOrDefault(emptyList())
+            names.asSequence()
+                .filter { it != context.packageName }
+                .mapNotNull { packageName ->
+                    runCatching { pm.getPackageInfo(packageName, 0) }.getOrNull()?.let { info ->
+                        val appInfo = info.applicationInfo
+                        if (appInfo == null) {
+                            null
+                        } else {
+                            val label = runCatching { appInfo.loadLabel(pm).toString() }
+                                .getOrDefault(info.packageName)
+                                .ifBlank { info.packageName }
+                            InstalledApp(
+                                packageName = info.packageName,
+                                label = label,
+                                isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
+                                lastUpdateTime = info.lastUpdateTime,
+                            )
+                        }
+                    }
+                }
+                .distinctBy { it.packageName }
+                .toList()
+        }.onFailure { LogX.e("读取已安装应用列表失败", it) }
+            .getOrDefault(emptyList())
+
+        LogX.i(
+            "已安装应用 ${apps.size} 个" +
+                (if (restricted) "（受限：改用 intent 反查）" else "") +
+                "，耗时 ${android.os.SystemClock.elapsedRealtime() - startedAt}ms",
+        )
+        return InstalledAppsResult(apps, restricted)
+    }
+
+    /** 权限被限制时，靠 intent / provider 反查包名。 */
+    private fun queryPackageNames(pm: PackageManager): List<String> {
+        val names = LinkedHashSet<String>()
+        fun add(block: () -> List<String>) {
+            runCatching { names += block() }.onFailure { LogX.e("枚举安装包失败", it) }
+        }
+        add {
+            pm.queryIntentActivities(
+                android.content.Intent(android.content.Intent.ACTION_MAIN),
+                PackageManager.MATCH_ALL,
+            ).mapNotNull { it.activityInfo?.packageName }
+        }
+        add {
+            pm.queryIntentServices(
+                android.content.Intent(android.content.Intent.ACTION_MAIN),
+                PackageManager.MATCH_ALL,
+            ).mapNotNull { it.serviceInfo?.packageName }
+        }
+        add {
+            pm.queryBroadcastReceivers(
+                android.content.Intent(android.content.Intent.ACTION_BOOT_COMPLETED),
+                PackageManager.MATCH_ALL,
+            ).mapNotNull { it.activityInfo?.packageName }
+        }
+        add {
+            pm.queryContentProviders(null, 0, PackageManager.MATCH_ALL).map { it.packageName }
+        }
+        return names.toList()
+    }
 
     /**
      * 读取**已安装应用**的包名/应用名/签名。
@@ -285,4 +358,3 @@ object SignatureUtil {
         }
     }.getOrNull()?.takeIf { it.isNotBlank() }
 }
-

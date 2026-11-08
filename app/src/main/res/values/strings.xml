@@ -62,4 +62,9 @@
     <string name="about_lib_miuix">Miuix</string>
     <string name="about_lib_xposed">libxposed</string>
     <string name="about_lib_lsposed">LSPosed</string>
+    <string name="installed_permission_title">无法读取已安装应用</string>
+    <string name="installed_permission_summary">系统限制了本应用读取已安装应用列表。请打开系统的应用信息页，在「权限」里允许「获取应用列表 / 已安装应用」相关权限，然后返回本页即可自动刷新。</string>
+    <string name="installed_permission_settings">打开应用设置</string>
+    <string name="installed_permission_later">暂不</string>
+    <string name="installed_permission_banner">未开启「获取应用列表」权限，点此去应用设置开启</string>
 </resources>

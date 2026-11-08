@@ -3,15 +3,19 @@ package com.xiang.signhelper.ui.screen.installed
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -19,28 +23,35 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.xiang.signhelper.R
 import com.xiang.signhelper.ui.component.AppRowCard
 import com.xiang.signhelper.ui.component.BlurredBar
 import com.xiang.signhelper.ui.component.LocalEnableBlur
 import com.xiang.signhelper.ui.component.LocalTopBarBlurBackdrop
+import com.xiang.signhelper.ui.component.MessageDialog
 import com.xiang.signhelper.ui.component.rememberAppIcon
 import com.xiang.signhelper.ui.component.rememberBlurBackdrop
 import com.xiang.signhelper.util.SignatureUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.DropdownImpl
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
 import top.yukonga.miuix.kmp.basic.ListPopupColumn
 import top.yukonga.miuix.kmp.basic.ListPopupDefaults
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.PopupPositionProvider
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -82,12 +93,38 @@ fun InstalledAppPickerScreen(
     var showSortPopup by remember { mutableStateOf(false) }
     var showMorePopup by remember { mutableStateOf(false) }
 
+    // 系统（MIUI / HyperOS）限制「获取应用列表」时置 true：列表走 intent 反查，可能不全，
+    // 需要弹窗引导用户去应用信息里开启权限。
+    var restricted by remember { mutableStateOf(false) }
+    var showPermissionDialog by remember { mutableStateOf(false) }
+    var permissionAsked by remember { mutableStateOf(false) }
+    var reloadToken by remember { mutableIntStateOf(0) }
+    var waitingForPermission by remember { mutableStateOf(false) }
+
     BackHandler(onBack = onBack)
 
-    LaunchedEffect(Unit) {
-        if (apps == null) {
-            apps = withContext(Dispatchers.IO) { SignatureUtil.listInstalledApps(context) }
+    LaunchedEffect(reloadToken) {
+        apps = null
+        val result = withContext(Dispatchers.IO) { SignatureUtil.listInstalledApps(context) }
+        apps = result.apps
+        restricted = result.restricted
+        if (result.restricted && !permissionAsked) {
+            permissionAsked = true
+            showPermissionDialog = true
         }
+    }
+
+    // 从系统设置返回后自动重载：用户可能刚把「获取应用列表」打开。
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && waitingForPermission) {
+                waitingForPermission = false
+                reloadToken++
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     val visibleApps = remember(apps, query, scopeFilter, sort, reversed) {
@@ -250,7 +287,19 @@ fun InstalledAppPickerScreen(
         Box(modifier = Modifier.fillMaxSize()) {
             when {
                 apps == null -> {
-                    CenteredHint(stringResource(R.string.installed_picker_loading))
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        InfiniteProgressIndicator(modifier = Modifier.size(40.dp))
+                        Text(
+                            text = stringResource(R.string.installed_picker_loading),
+                            modifier = Modifier.padding(top = 12.dp),
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            style = MiuixTheme.textStyles.footnote2,
+                        )
+                    }
                 }
 
                 visibleApps.isEmpty() -> {
@@ -270,6 +319,24 @@ fun InstalledAppPickerScreen(
                         verticalArrangement = Arrangement.spacedBy(0.dp),
                         overscrollEffect = null,
                     ) {
+                        if (restricted) {
+                            item {
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                                ) {
+                                    TextButton(
+                                        text = stringResource(R.string.installed_permission_banner),
+                                        onClick = {
+                                            waitingForPermission = true
+                                            openAppSettings(context)
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
+                            }
+                        }
                         items(visibleApps, key = { it.packageName }) { app ->
                             AppRowCard(
                                 title = app.label,
@@ -283,6 +350,30 @@ fun InstalledAppPickerScreen(
             }
         }
     }
+
+    // 系统限制了应用列表读取时，弹一次原生「应用信息」页引导用户自己开权限。
+    MessageDialog(
+        show = showPermissionDialog,
+        title = stringResource(R.string.installed_permission_title),
+        summary = stringResource(R.string.installed_permission_summary),
+        confirmText = stringResource(R.string.installed_permission_settings),
+        cancelText = stringResource(R.string.installed_permission_later),
+        onConfirm = {
+            showPermissionDialog = false
+            waitingForPermission = true
+            openAppSettings(context)
+        },
+        onDismiss = { showPermissionDialog = false },
+    )
+}
+
+/** 打开系统原生的「应用信息」页，由用户自己在权限里开启「获取应用列表」。 */
+private fun openAppSettings(context: android.content.Context) {
+    val intent = android.content.Intent(
+        android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+        android.net.Uri.fromParts("package", context.packageName, null),
+    ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { context.startActivity(intent) }
 }
 
 @Composable

@@ -56,4 +56,9 @@
     <string name="about_lib_miuix">Miuix</string>
     <string name="about_lib_xposed">libxposed</string>
     <string name="about_lib_lsposed">LSPosed</string>
+    <string name="installed_permission_title">Cannot read installed apps</string>
+    <string name="installed_permission_summary">The system is blocking access to the installed app list. Open the system app info page, allow the “installed apps / app list” permission under Permissions, then come back and this page will refresh automatically.</string>
+    <string name="installed_permission_settings">Open app settings</string>
+    <string name="installed_permission_later">Not now</string>
+    <string name="installed_permission_banner">“App list” permission is off — tap to open app settings</string>
 </resources>

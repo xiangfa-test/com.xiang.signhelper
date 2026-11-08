@@ -39,6 +39,8 @@
 3. 打开条目开关 → 强制停止被 hook 的应用 → 重新打开
 4. 该应用再读取列表内应用的签名，拿到的就是伪造值
 
+> 部分系统（MIUI / HyperOS 等）默认禁止应用读取已安装应用列表。未开启时本模块会退回到 intent 反查（列表可能不完整），并弹窗引导你打开系统「应用信息 → 权限」自行允许「获取应用列表 / 已安装应用」，允许后返回即可自动刷新。
+
 ## 配置与数据
 
 模块界面写本地 `SharedPreferences`，同时通过 `XposedService.getRemotePreferences("signhelper_config")`
@@ -62,4 +64,5 @@
 ## License
 
 GPL-3.0（见 [LICENSE](LICENSE)）。
+
 
