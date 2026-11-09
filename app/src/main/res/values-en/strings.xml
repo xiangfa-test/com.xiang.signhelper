@@ -67,4 +67,18 @@
     <string name="installed_permission_banner">“App list” permission is off — tap to open app settings</string>
     <string name="about_credit_xihan">xihan (original author)</string>
     <string name="about_credit_xihan_unknown">The original author link is currently unknown</string>
+    <string name="catalog_backup">Backup</string>
+    <string name="catalog_backup_summary">Export the app list and signatures to a JSON file</string>
+    <string name="catalog_restore">Restore</string>
+    <string name="catalog_restore_summary">Restore from a backup JSON; same package names are overwritten</string>
+    <string name="catalog_backup_done">Exported %1$d entries</string>
+    <string name="catalog_backup_failed">Export failed. Try another location.</string>
+    <string name="catalog_restore_done">Restored: %1$d added, %2$d replaced, %3$d skipped</string>
+    <string name="catalog_restore_failed">This file is not a valid SignHelper backup</string>
+    <string name="catalog_restore_read_failed">Could not read this file</string>
+    <string name="catalog_signature_info">Signature info</string>
+    <string name="catalog_signature_info_summary">This is the original signature stored for this entry; it can be re-read from the installed app.</string>
+    <string name="catalog_signature_refreshed">Original signature refreshed</string>
+    <string name="catalog_signature_refresh_failed">Read failed — the app may not be installed</string>
+    <string name="signature_refresh">Refresh</string>
 </resources>

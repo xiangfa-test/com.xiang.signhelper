@@ -73,4 +73,18 @@
     <string name="installed_permission_banner">未开启「获取应用列表」权限，点此去应用设置开启</string>
     <string name="about_credit_xihan">xihan（原版作者）</string>
     <string name="about_credit_xihan_unknown">暂不清楚原作者的相关链接</string>
+    <string name="catalog_backup">备份配置</string>
+    <string name="catalog_backup_summary">把应用列表与签名导出为 JSON 文件</string>
+    <string name="catalog_restore">恢复配置</string>
+    <string name="catalog_restore_summary">从备份 JSON 恢复，同包名覆盖，其余保留</string>
+    <string name="catalog_backup_done">已导出 %1$d 条配置</string>
+    <string name="catalog_backup_failed">导出失败，请换个位置重试</string>
+    <string name="catalog_restore_done">恢复完成：新增 %1$d 条，覆盖 %2$d 条，跳过 %3$d 条</string>
+    <string name="catalog_restore_failed">该文件不是有效的签名助手备份</string>
+    <string name="catalog_restore_read_failed">无法读取该文件</string>
+    <string name="catalog_signature_info">签名信息</string>
+    <string name="catalog_signature_info_summary">以下是列表里保存的原始签名；可以重新从已安装应用读取。</string>
+    <string name="catalog_signature_refreshed">已重新获取原始签名</string>
+    <string name="catalog_signature_refresh_failed">读取失败，应用可能未安装</string>
+    <string name="signature_refresh">重新获取</string>
 </resources>

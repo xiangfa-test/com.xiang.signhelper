@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import com.xiang.signhelper.config.Config
 import com.xiang.signhelper.util.LogX
 import org.json.JSONArray
+import org.json.JSONObject
 
 /**
  * 条目仓库：界面唯一的读写入口，同时负责把"生效条目"投影成 hook 端的键。
@@ -120,6 +121,77 @@ object SignStore {
             }
             list[index] = list[index].copy(isForged = enabled)
             commit(list)
+        }
+    }
+
+    /** 备份恢复的统计结果。 */
+    data class RestoreResult(val added: Int, val replaced: Int, val invalid: Int)
+
+    /** 把全部条目导出成带版本号的 JSON 文本（备份用，含未启用/未填签名的条目）。 */
+    fun exportBackupJson(): String {
+        synchronized(lock) {
+            val array = JSONArray()
+            entriesState.value.forEach { array.put(it.toJson()) }
+            return JSONObject().apply {
+                put("format", "signhelper-backup")
+                put("version", 1)
+                put("exportedAt", System.currentTimeMillis())
+                put("entries", array)
+            }.toString(2)
+        }
+    }
+
+    /**
+     * 从备份 JSON 恢复：按包名合并（同包名覆盖，其余保留）。
+     *
+     * 兼容 `{"entries": [...]}` 与裸数组两种格式；返回 null 表示文件根本不是备份。
+     */
+    fun restoreBackupJson(raw: String): RestoreResult? {
+        if (raw.isBlank()) return null
+        val array = runCatching { JSONObject(raw).optJSONArray("entries") }.getOrNull()
+            ?: runCatching { JSONArray(raw) }.getOrNull()
+            ?: return null
+        var added = 0
+        var replaced = 0
+        var invalid = 0
+        synchronized(lock) {
+            val list = entriesState.value.toMutableList()
+            for (i in 0 until array.length()) {
+                val obj = array.optJSONObject(i)
+                val entry = obj?.let { SignEntry.fromJson(it) }?.let { normalize(it) }
+                if (entry == null) {
+                    invalid++
+                    continue
+                }
+                val index = list.indexOfFirst { it.packageName == entry.packageName }
+                if (index >= 0) {
+                    list[index] = entry
+                    replaced++
+                } else {
+                    list.add(entry)
+                    added++
+                }
+            }
+            commit(list)
+        }
+        LogX.i("恢复备份：新增 $added，覆盖 $replaced，跳过 $invalid")
+        return RestoreResult(added, replaced, invalid)
+    }
+
+    /** 更新条目的应用名与原始签名（列表里「重新获取签名信息」用）。 */
+    fun updateOriginal(packageName: String, apkName: String, originalSignature: String): Boolean {
+        synchronized(lock) {
+            val list = entriesState.value.toMutableList()
+            val index = list.indexOfFirst { it.packageName == packageName }
+            if (index < 0) {
+                LogX.w("SignStore.updateOriginal：不存在 $packageName")
+                return false
+            }
+            list[index] = list[index].copy(
+                apkName = apkName.trim().ifEmpty { packageName },
+                originalSignature = normalizeHex(originalSignature),
+            )
+            return commit(list)
         }
     }
 

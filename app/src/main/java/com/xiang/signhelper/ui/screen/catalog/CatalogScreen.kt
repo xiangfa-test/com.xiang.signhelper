@@ -3,6 +3,7 @@ package com.xiang.signhelper.ui.screen.catalog
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -44,9 +46,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.DropdownImpl
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.ListPopupColumn
+import top.yukonga.miuix.kmp.basic.ListPopupDefaults
+import top.yukonga.miuix.kmp.basic.PopupPositionProvider
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Info
+import top.yukonga.miuix.kmp.icon.extended.MoreCircle
+import top.yukonga.miuix.kmp.overlay.OverlayListPopup
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.PressFeedbackType
@@ -102,6 +114,51 @@ fun CatalogScreen(
     var reading by remember { mutableStateOf(false) }
     // 「选择 APK」只读取并展示签名原始数据，不加入伪装列表。
     var apkSignature by remember { mutableStateOf<SignatureUtil.ApkMeta?>(null) }
+    // 列表条目的签名信息对话框（可重新读取原始签名）。
+    var signatureView by remember { mutableStateOf<SignEntry?>(null) }
+    // 备份/恢复结果提示。
+    var backupTitle by remember { mutableStateOf("") }
+    var backupMessage by remember { mutableStateOf<String?>(null) }
+    // 右上角「更多」菜单（备份 / 恢复）。
+    var showMoreMenu by remember { mutableStateOf(false) }
+
+    val exportBackup = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val ok = runCatching {
+            context.contentResolver.openOutputStream(uri)?.use { out ->
+                out.write(SignStore.exportBackupJson().toByteArray(Charsets.UTF_8))
+            } ?: error("无法打开输出流")
+        }.isSuccess
+        backupTitle = context.getString(R.string.catalog_backup)
+        backupMessage = if (ok) {
+            context.getString(R.string.catalog_backup_done, SignStore.entries.size)
+        } else {
+            context.getString(R.string.catalog_backup_failed)
+        }
+    }
+
+    val importBackup = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val text = runCatching {
+            context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+        }.getOrNull()
+        val result = text?.let { SignStore.restoreBackupJson(it) }
+        backupTitle = context.getString(R.string.catalog_restore)
+        backupMessage = when {
+            text == null -> context.getString(R.string.catalog_restore_read_failed)
+            result == null -> context.getString(R.string.catalog_restore_failed)
+            else -> context.getString(
+                R.string.catalog_restore_done,
+                result.added,
+                result.replaced,
+                result.invalid,
+            )
+        }
+    }
 
     /** 把一条应用信息写进列表；同包名已存在时合并（保留已填的伪造签名）。 */
     fun upsert(meta: SignatureUtil.ApkMeta): SignEntry {
@@ -159,6 +216,55 @@ fun CatalogScreen(
     PageScaffold(
         titleRes = R.string.page_catalog,
         bottomPadding = bottomPadding,
+        actions = {
+            Box {
+                OverlayListPopup(
+                    show = showMoreMenu,
+                    popupPositionProvider = ListPopupDefaults.dropdownPositionProvider(),
+                    alignment = PopupPositionProvider.Align.TopEnd,
+                    onDismissRequest = { showMoreMenu = false },
+                    content = {
+                        ListPopupColumn {
+                            DropdownImpl(
+                                text = stringResource(R.string.catalog_backup),
+                                optionSize = 2,
+                                isSelected = false,
+                                index = 0,
+                                onSelectedIndexChange = {
+                                    showMoreMenu = false
+                                    runCatching { exportBackup.launch("signhelper-backup.json") }
+                                        .onFailure { pickError = noPickerText }
+                                },
+                            )
+                            DropdownImpl(
+                                text = stringResource(R.string.catalog_restore),
+                                optionSize = 2,
+                                isSelected = false,
+                                index = 1,
+                                onSelectedIndexChange = {
+                                    showMoreMenu = false
+                                    runCatching {
+                                        importBackup.launch(
+                                            arrayOf("application/json", "text/plain", "application/octet-stream"),
+                                        )
+                                    }.onFailure { pickError = noPickerText }
+                                },
+                            )
+                        }
+                    },
+                )
+                IconButton(
+                    onClick = { showMoreMenu = true },
+                    holdDownState = showMoreMenu,
+                ) {
+                    Icon(
+                        imageVector = MiuixIcons.MoreCircle,
+                        contentDescription = stringResource(R.string.catalog_menu_more),
+                        tint = MiuixTheme.colorScheme.onSurface,
+                    )
+                }
+            }
+        },
     ) { contentPadding, scrollBehavior ->
         LazyColumn(
             modifier = Modifier
@@ -223,6 +329,7 @@ fun CatalogScreen(
                                 SignStore.setEnabled(entry.packageName, enabled)
                             }
                         },
+                        onShowSignature = { signatureView = entry },
                     )
                 }
             }
@@ -296,6 +403,52 @@ fun CatalogScreen(
             summary = pickError,
             onDismiss = { pickError = null },
         )
+
+        // 列表条目的签名信息（带"重新获取"）
+        val viewTarget = signatureView
+        SignatureInfoDialog(
+            show = viewTarget != null,
+            title = stringResource(R.string.catalog_signature_info),
+            apkName = viewTarget?.apkName.orEmpty(),
+            packageName = viewTarget?.packageName.orEmpty(),
+            signature = viewTarget?.originalSignature.orEmpty(),
+            summary = stringResource(R.string.catalog_signature_info_summary),
+            onRefresh = {
+                val target = viewTarget
+                if (target != null) {
+                    scope.launch {
+                        val meta = withContext(Dispatchers.IO) {
+                            runCatching { SignatureUtil.readInstalledApp(context, target.packageName) }.getOrNull()
+                        }
+                        val current = signatureView
+                        if (meta != null && current != null) {
+                            SignStore.updateOriginal(target.packageName, meta.apkName, meta.signatureHex)
+                            signatureView = current.copy(apkName = meta.apkName, originalSignature = meta.signatureHex)
+                            android.widget.Toast.makeText(
+                                context,
+                                context.getString(R.string.catalog_signature_refreshed),
+                                android.widget.Toast.LENGTH_SHORT,
+                            ).show()
+                        } else {
+                            android.widget.Toast.makeText(
+                                context,
+                                context.getString(R.string.catalog_signature_refresh_failed),
+                                android.widget.Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                    }
+                }
+            },
+            onDismiss = { signatureView = null },
+        )
+
+        // 备份/恢复结果
+        MessageDialog(
+            show = backupMessage != null,
+            title = backupTitle,
+            summary = backupMessage,
+            onDismiss = { backupMessage = null },
+        )
     }
 }
 
@@ -313,6 +466,7 @@ private fun SignEntryCard(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onToggle: (Boolean) -> Unit,
+    onShowSignature: () -> Unit,
 ) {
     val icon = rememberAppIcon(entry.packageName)
     val forged = entry.forgedSignature
@@ -385,6 +539,20 @@ private fun SignEntryCard(
             }
 
             Spacer(modifier = Modifier.width(12.dp))
+
+            IconButton(
+                onClick = onShowSignature,
+                modifier = Modifier.size(32.dp),
+            ) {
+                Icon(
+                    imageVector = MiuixIcons.Info,
+                    contentDescription = stringResource(R.string.catalog_signature_info),
+                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+
+            Spacer(modifier = Modifier.width(4.dp))
 
             Switch(
                 checked = entry.isForged,

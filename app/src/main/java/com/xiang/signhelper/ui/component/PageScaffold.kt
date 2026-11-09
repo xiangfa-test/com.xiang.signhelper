@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -30,6 +31,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiang.signhelper.R
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -77,6 +79,7 @@ fun PageScaffold(
     onBack: (() -> Unit)? = null,
     subtitle: String = "",
     bottomPadding: Dp = 0.dp,
+    actions: @Composable RowScope.() -> Unit = {},
     content: @Composable (contentPadding: PaddingValues, scrollBehavior: ScrollBehavior) -> Unit,
 ) {
     val isWideScreen = LocalConfiguration.current.screenWidthDp >= WIDE_SCREEN_DP
@@ -115,6 +118,7 @@ fun PageScaffold(
                         subtitle = subtitle,
                         scrollBehavior = scrollBehavior,
                         navigationIcon = navigationIcon,
+                        actions = actions,
                         color = barColor,
                     )
                 } else {
@@ -123,6 +127,7 @@ fun PageScaffold(
                         subtitle = subtitle,
                         scrollBehavior = scrollBehavior,
                         navigationIcon = navigationIcon,
+                        actions = actions,
                         color = barColor,
                     )
                 }
@@ -215,12 +220,14 @@ fun MessageDialog(
                 TextButton(
                     text = confirmText,
                     onClick = onConfirm,
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
                     modifier = Modifier.weight(1f),
                 )
             } else {
                 TextButton(
                     text = stringResource(R.string.common_ok),
                     onClick = onDismiss,
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -272,6 +279,7 @@ fun TextInputDialog(
                 TextButton(
                     text = stringResource(R.string.common_ok),
                     enabled = valid,
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
                     onClick = {
                         if (valid) {
                             onAccept(text)
@@ -306,6 +314,10 @@ fun SignatureInfoDialog(
     packageName: String,
     signature: String,
     onDismiss: () -> Unit,
+    /** 说明文字；不传就用「选择 APK」的默认说明。 */
+    summary: String? = null,
+    /** 不传则不显示「重新获取」按钮（列表条目才需要）。 */
+    onRefresh: (() -> Unit)? = null,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
@@ -313,7 +325,7 @@ fun SignatureInfoDialog(
     OverlayDialog(
         show = show,
         title = title,
-        summary = stringResource(R.string.catalog_apk_signature_summary),
+        summary = summary ?: stringResource(R.string.catalog_apk_signature_summary),
         onDismissRequest = onDismiss,
     ) {
         Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
@@ -354,6 +366,13 @@ fun SignatureInfoDialog(
                 }
             }
             Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)) {
+                if (onRefresh != null) {
+                    TextButton(
+                        text = stringResource(R.string.signature_refresh),
+                        onClick = onRefresh,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
                 TextButton(
                     text = stringResource(R.string.common_copy),
                     onClick = {
@@ -365,6 +384,7 @@ fun SignatureInfoDialog(
                 TextButton(
                     text = stringResource(R.string.common_ok),
                     onClick = onDismiss,
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
                     modifier = Modifier.weight(1f),
                 )
             }
