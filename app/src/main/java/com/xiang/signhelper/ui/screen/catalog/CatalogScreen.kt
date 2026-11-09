@@ -25,7 +25,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -40,7 +39,6 @@ import com.xiang.signhelper.ui.component.AppIcon
 import com.xiang.signhelper.ui.component.MessageDialog
 import com.xiang.signhelper.ui.component.PageScaffold
 import com.xiang.signhelper.ui.component.SignatureInfoDialog
-import com.xiang.signhelper.ui.component.SignaturePreview
 import com.xiang.signhelper.ui.component.cardPadding
 import com.xiang.signhelper.ui.component.pageScroll
 import com.xiang.signhelper.ui.component.rememberAppIcon
@@ -61,7 +59,6 @@ import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.Info
 import top.yukonga.miuix.kmp.icon.extended.MoreCircle
 import top.yukonga.miuix.kmp.overlay.OverlayListPopup
 import top.yukonga.miuix.kmp.preference.ArrowPreference
@@ -146,7 +143,6 @@ fun CatalogScreen(
     // 「选择 APK」只读取并展示签名原始数据，不加入伪装列表。
     var apkSignature by remember { mutableStateOf<SignatureUtil.ApkMeta?>(null) }
     // 列表条目的签名信息对话框（可重新读取原始签名）。
-    var signatureView by remember { mutableStateOf<SignEntry?>(null) }
     // 备份/恢复结果提示。
     var backupTitle by remember { mutableStateOf("") }
     var backupMessage by remember { mutableStateOf<String?>(null) }
@@ -381,7 +377,6 @@ fun CatalogScreen(
                                 SignStore.setEnabled(entry.packageName, enabled)
                             }
                         },
-                        onShowSignature = { signatureView = entry },
                     )
                 }
             }
@@ -436,44 +431,6 @@ fun CatalogScreen(
             onDismiss = { pickError = null },
         )
 
-        // 列表条目的签名信息（带"重新获取"）
-        val viewTarget = signatureView
-        SignatureInfoDialog(
-            show = viewTarget != null,
-            title = stringResource(R.string.catalog_signature_info),
-            apkName = viewTarget?.apkName.orEmpty(),
-            packageName = viewTarget?.packageName.orEmpty(),
-            signature = viewTarget?.originalSignature.orEmpty(),
-            summary = stringResource(R.string.catalog_signature_info_summary),
-            onRefresh = {
-                val target = viewTarget
-                if (target != null) {
-                    scope.launch {
-                        val meta = withContext(Dispatchers.IO) {
-                            runCatching { SignatureUtil.readInstalledApp(context, target.packageName) }.getOrNull()
-                        }
-                        val current = signatureView
-                        if (meta != null && current != null) {
-                            SignStore.updateOriginal(target.packageName, meta.apkName, meta.signatureHex)
-                            signatureView = current.copy(apkName = meta.apkName, originalSignature = meta.signatureHex)
-                            android.widget.Toast.makeText(
-                                context,
-                                context.getString(R.string.catalog_signature_refreshed),
-                                android.widget.Toast.LENGTH_SHORT,
-                            ).show()
-                        } else {
-                            android.widget.Toast.makeText(
-                                context,
-                                context.getString(R.string.catalog_signature_refresh_failed),
-                                android.widget.Toast.LENGTH_SHORT,
-                            ).show()
-                        }
-                    }
-                }
-            },
-            onDismiss = { signatureView = null },
-        )
-
         // 备份/恢复结果
         MessageDialog(
             show = backupMessage != null,
@@ -498,12 +455,9 @@ private fun SignEntryCard(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onToggle: (Boolean) -> Unit,
-    onShowSignature: () -> Unit,
 ) {
     val icon = rememberAppIcon(entry.packageName)
     val forged = entry.forgedSignature
-    val clipboard = LocalClipboardManager.current
-    val context = androidx.compose.ui.platform.LocalContext.current
 
     Card(
         modifier = Modifier
@@ -542,14 +496,15 @@ private fun SignEntryCard(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                SignaturePreview(
-                    signature = entry.originalSignature,
-                    lines = 5,
-                    onClick = onShowSignature,
-                    onLongClick = {
-                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(entry.originalSignature))
-                        Toast.makeText(context, context.getString(R.string.common_copied), Toast.LENGTH_SHORT).show()
-                    },
+                Text(
+                    text = stringResource(
+                        R.string.catalog_original_signature,
+                        SignatureUtil.prettifyHex(entry.originalSignature),
+                    ),
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MiuixTheme.textStyles.footnote2,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = if (forged.isBlank()) {
@@ -572,20 +527,6 @@ private fun SignEntryCard(
             }
 
             Spacer(modifier = Modifier.width(12.dp))
-
-            IconButton(
-                onClick = onShowSignature,
-                modifier = Modifier.size(32.dp),
-            ) {
-                Icon(
-                    imageVector = MiuixIcons.Info,
-                    contentDescription = stringResource(R.string.catalog_signature_info),
-                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-
-            Spacer(modifier = Modifier.width(4.dp))
 
             Switch(
                 checked = entry.isForged,
