@@ -10,8 +10,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Android-13%2B-3ddc84?logo=android&logoColor=white" alt="Android 13+">
   <img src="https://img.shields.io/badge/LSPosed-module-6f42c1" alt="LSPosed module">
-  <a href="https://t.me/onelazyfish"><img src="https://img.shields.io/badge/Telegram-%E4%BA%A4%E6%B5%81%E9%A2%91%E9%81%93-26A5E4?logo=telegram&logoColor=white" alt="Telegram 交流频道"></a>
-  <a href="https://t.me/xiangfa_channel"><img src="https://img.shields.io/badge/Telegram-%E5%8F%91%E5%B8%83%E9%A2%91%E9%81%93-26A5E4?logo=telegram&logoColor=white" alt="Telegram 发布频道"></a>
+  <a href="https://t.me/onelazyfish"><img src="https://img.shields.io/badge/Telegram-MIKU%E7%9A%84%E5%B0%8F%E7%AA%9D-26A5E4?logo=telegram&logoColor=white" alt="Telegram 发布频道：MIKU的小窝"></a>
+  <a href="https://t.me/xiangfa_channel"><img src="https://img.shields.io/badge/Telegram-%E6%83%B3%E6%B3%95%E3%81%AE%E7%AA%9D-26A5E4?logo=telegram&logoColor=white" alt="Telegram 发布频道：想法の窝"></a>
 </p>
 
 对**简单签名校验**通杀的 LSPosed 模块：被 hook 的应用通过 `PackageManager`
@@ -64,10 +64,10 @@
 - `forged_packages`：生效中的包名（`\n` 分隔）
 - `sig:<包名>`：该包的伪造签名（hex）
 
-## 交流
+## 发布频道
 
-- Telegram 交流频道：https://t.me/onelazyfish
-- Telegram 发布频道：https://t.me/xiangfa_channel
+- Telegram 发布频道：https://t.me/onelazyfish（MIKU的小窝）
+- Telegram 发布频道：https://t.me/xiangfa_channel（想法の窝\[SFW\]）
 
 ## License
 
