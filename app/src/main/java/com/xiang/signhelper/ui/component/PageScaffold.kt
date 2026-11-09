@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,6 +25,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.xiang.signhelper.R
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -320,12 +324,23 @@ fun SignatureInfoDialog(
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 style = MiuixTheme.textStyles.footnote2,
             )
-            androidx.compose.foundation.text.selection.SelectionContainer {
-                Text(
-                    text = com.xiang.signhelper.util.SignatureUtil.prettifyHex(signature),
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    style = MiuixTheme.textStyles.footnote2,
-                )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 300.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                androidx.compose.foundation.text.selection.SelectionContainer {
+                    Text(
+                        text = signature.chunked(48).joinToString("\n"),
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        style = MiuixTheme.textStyles.footnote2.copy(
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            fontSize = 11.sp,
+                            lineHeight = 16.sp,
+                        ),
+                    )
+                }
             }
             Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)) {
                 TextButton(
