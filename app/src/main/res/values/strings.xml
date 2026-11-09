@@ -118,6 +118,9 @@
     <string name="oobe_disclaimer_title">免责协议</string>
     <string name="oobe_disclaimer_body">本模块仅供学习与技术研究使用，请在遵守当地法律法规的前提下使用。\n使用本模块造成的任何后果由使用者自行承担，包括但不限于应用数据损坏、账号异常、系统不稳定等。\n作者不对因使用本模块产生的任何直接或间接损失负责。\n继续即表示你已理解并同意以上内容。</string>
     <string name="oobe_agree">同意并继续</string>
+    <string name="oobe_confirm">确认</string>
+    <string name="oobe_back">返回</string>
+    <string name="oobe_success_title">基础设置已完成</string>
     <string name="oobe_next">下一步</string>
     <string name="oobe_prev">上一步</string>
     <string name="about_lib_hyperlyrics">HyperLyrics-Enhanced</string>

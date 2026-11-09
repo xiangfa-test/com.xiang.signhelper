@@ -89,7 +89,7 @@ fun OobeScreen(onDone: () -> Unit) {
     val exitAlpha by animateFloatAsState(if (exiting) 0f else 1f, tween(250), label = "oobe_exit_alpha")
     val exitScale by animateFloatAsState(if (exiting) 0.97f else 1f, tween(250), label = "oobe_exit_scale")
 
-    val pagerState = rememberPagerState(pageCount = { 3 })
+    val pagerState = rememberPagerState(pageCount = { 4 })
 
     Box(
         modifier = Modifier
@@ -101,16 +101,16 @@ fun OobeScreen(onDone: () -> Unit) {
             },
     ) {
         Scaffold(
-            topBar = { OobeHeader(pageCount = 3, currentPage = pagerState.targetPage) },
+            topBar = { OobeHeader(pageCount = 4, currentPage = pagerState.targetPage) },
             bottomBar = {
                 OobeBottomBar(
                     showBack = pagerState.targetPage > 0,
-                    isLast = pagerState.targetPage == 2,
+                    isLast = pagerState.targetPage == 3,
                     onBack = {
                         scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
                     },
                     onNext = {
-                        if (pagerState.targetPage < 2) {
+                        if (pagerState.targetPage < 3) {
                             scope.launch {
                                 pagerState.animateScrollToPage(pagerState.currentPage + 1)
                             }
@@ -140,11 +140,12 @@ fun OobeScreen(onDone: () -> Unit) {
                     when (page) {
                         0 -> WelcomePage(active)
                         1 -> BasicsPage(active)
-                        else -> BehaviorAndDisclaimerPage(
+                        2 -> BehaviorAndDisclaimerPage(
                             active = active,
                             pickDetail = pickDetail,
                             onPickChanged = { pickDetail = it },
                         )
+                        else -> SuccessPage(active)
                     }
                 }
             }
@@ -245,7 +246,9 @@ private fun OobeBottomBar(
                 exit = fadeOut(tween(150)) + shrinkVertically(),
             ) {
                 TextButton(
-                    text = stringResource(R.string.oobe_prev),
+                    text = stringResource(
+                        if (isLast) R.string.oobe_back else R.string.oobe_prev,
+                    ),
                     onClick = onBack,
                     modifier = Modifier.width(backWidth),
                 )
@@ -253,7 +256,7 @@ private fun OobeBottomBar(
             Spacer(Modifier.weight(1f))
             TextButton(
                 text = stringResource(
-                    if (isLast) R.string.oobe_agree else R.string.oobe_next,
+                    if (isLast) R.string.oobe_confirm else R.string.oobe_next,
                 ),
                 colors = ButtonDefaults.textButtonColorsPrimary(),
                 onClick = onNext,
@@ -281,6 +284,41 @@ private fun StaggerItem(active: Boolean, index: Int, content: @Composable () -> 
         enter = fadeIn(tween(300)) + slideInVertically { it / 8 },
         content = { content() },
     )
+}
+
+@Composable
+private fun SuccessPage(active: Boolean) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        StaggerItem(active = active, index = 0) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    modifier = Modifier
+                        .size(96.dp)
+                        .clip(CircleShape)
+                        .background(MiuixTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "✓",
+                        color = MiuixTheme.colorScheme.onPrimary,
+                        fontSize = 52.sp,
+                        fontWeight = FontWeight(600),
+                    )
+                }
+                Spacer(modifier = Modifier.height(20.dp))
+                Text(
+                    text = stringResource(R.string.oobe_success_title),
+                    color = MiuixTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight(600),
+                    style = MiuixTheme.textStyles.title1,
+                )
+            }
+        }
+    }
 }
 
 @Composable

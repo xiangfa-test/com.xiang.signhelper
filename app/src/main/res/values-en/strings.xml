@@ -112,6 +112,9 @@
     <string name="oobe_disclaimer_title">Disclaimer</string>
     <string name="oobe_disclaimer_body">This module is for learning and research only. Use it only where permitted by local law.\nYou are responsible for any consequences, including data damage, account issues or system instability.\nThe author is not liable for any direct or indirect loss caused by using this module.\nContinuing means you understand and accept the above.</string>
     <string name="oobe_agree">Agree and continue</string>
+    <string name="oobe_confirm">Confirm</string>
+    <string name="oobe_back">Back</string>
+    <string name="oobe_success_title">Setup complete</string>
     <string name="oobe_next">Next</string>
     <string name="oobe_prev">Back</string>
     <string name="about_lib_hyperlyrics">HyperLyrics-Enhanced</string>
