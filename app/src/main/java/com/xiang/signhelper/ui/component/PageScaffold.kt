@@ -1,6 +1,7 @@
 package com.xiang.signhelper.ui.component
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -22,6 +23,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -324,21 +327,29 @@ fun SignatureInfoDialog(
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 style = MiuixTheme.textStyles.footnote2,
             )
-            Box(
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 300.dp)
                     .verticalScroll(rememberScrollState()),
             ) {
+                val density = LocalDensity.current
+                val measurer = rememberTextMeasurer()
+                val signatureStyle = MiuixTheme.textStyles.footnote2.copy(
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp,
+                )
+                // 按实际可用宽度切行：每行字节数随对话框宽度变化，右侧只剩不足一个字符的余量。
+                val samplePx = with(density) { measurer.measure("0".repeat(16), signatureStyle).size.width.toFloat() }
+                val charWidthPx = (samplePx / 16f).coerceAtLeast(1f)
+                val availablePx = with(density) { maxWidth.toPx() } - 2f
+                val perLine = (((availablePx / charWidthPx).toInt()) / 2 * 2).coerceAtLeast(16)
                 androidx.compose.foundation.text.selection.SelectionContainer {
                     Text(
-                        text = signature.chunked(48).joinToString("\n"),
+                        text = signature.chunked(perLine).joinToString("\n"),
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        style = MiuixTheme.textStyles.footnote2.copy(
-                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                            fontSize = 11.sp,
-                            lineHeight = 16.sp,
-                        ),
+                        style = signatureStyle,
                     )
                 }
             }
