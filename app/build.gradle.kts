@@ -48,7 +48,7 @@ android {
     buildToolsVersion = "37.0.0"
 
     defaultConfig {
-        applicationId = "com.xiang.signhelper"
+        applicationId = "io.github.xiangfa_test.signhelper"
         // Miuix 0.9.4 / miuix-blur 要求 minSdk 33。
         minSdk = 33
         targetSdk = 34
