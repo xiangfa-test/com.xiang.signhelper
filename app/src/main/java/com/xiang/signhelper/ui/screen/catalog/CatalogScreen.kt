@@ -1,5 +1,6 @@
 package com.xiang.signhelper.ui.screen.catalog
 
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +25,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -31,18 +33,20 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.xiang.signhelper.R
+import com.xiang.signhelper.config.Config
 import com.xiang.signhelper.data.SignEntry
 import com.xiang.signhelper.data.SignStore
 import com.xiang.signhelper.ui.component.AppIcon
 import com.xiang.signhelper.ui.component.MessageDialog
 import com.xiang.signhelper.ui.component.PageScaffold
 import com.xiang.signhelper.ui.component.SignatureInfoDialog
-import com.xiang.signhelper.ui.component.TextInputDialog
+import com.xiang.signhelper.ui.component.SignaturePreview
 import com.xiang.signhelper.ui.component.cardPadding
 import com.xiang.signhelper.ui.component.pageScroll
 import com.xiang.signhelper.ui.component.rememberAppIcon
 import com.xiang.signhelper.util.SignatureUtil
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.Card
@@ -55,6 +59,7 @@ import top.yukonga.miuix.kmp.basic.PopupPositionProvider
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Info
 import top.yukonga.miuix.kmp.icon.extended.MoreCircle
@@ -93,12 +98,39 @@ fun CatalogScreen(
     pendingInstalledPackage: String? = null,
     onPendingInstalledConsumed: () -> Unit = {},
     onOpenInstalledPicker: () -> Unit = {},
+    onOpenDetail: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     // 唯一数据源。读它就是订阅：SignStore 内部改了，本页重组。
     val entries = SignStore.entries
+    // 超多应用时的搜索：只过滤应用列表，不影响上面的操作卡。
+    var query by remember { mutableStateOf("") }
+    // 应用更新后签名会变：进入目录时后台静默刷新一遍已安装应用的原始签名。
+    LaunchedEffect(Unit) {
+        val snapshot = SignStore.entries
+        withContext(Dispatchers.IO) {
+            snapshot.forEach { entry ->
+                val meta = runCatching { SignatureUtil.readInstalledApp(context, entry.packageName) }.getOrNull()
+                if (meta != null && meta.signatureHex != entry.originalSignature) {
+                    SignStore.updateOriginal(entry.packageName, meta.apkName, meta.signatureHex)
+                }
+            }
+        }
+    }
+
+    val visibleEntries = remember(entries, query) {
+        val keyword = query.trim()
+        if (keyword.isEmpty()) {
+            entries
+        } else {
+            entries.filter {
+                it.apkName.contains(keyword, ignoreCase = true) ||
+                    it.packageName.contains(keyword, ignoreCase = true)
+            }
+        }
+    }
 
     // 文案在组合期取好，回调里直接用 —— 避免在非组合上下文里用 LocalContext 取资源
     // （配置变化时可能拿到旧值）。
@@ -107,7 +139,6 @@ fun CatalogScreen(
     val noPickerText = stringResource(R.string.catalog_pick_no_picker)
 
     // 对话框状态。用「目标条目」而不是布尔值：对话框标题/初值直接从目标上取。
-    var editing by remember { mutableStateOf<SignEntry?>(null) }
     var deleting by remember { mutableStateOf<SignEntry?>(null) }
     var showClearDialog by remember { mutableStateOf(false) }
     var pickError by remember { mutableStateOf<String?>(null) }
@@ -191,7 +222,13 @@ fun CatalogScreen(
             onPendingInstalledConsumed()
             return@LaunchedEffect
         }
-        editing = upsert(meta)
+        val entry = upsert(meta)
+        if (Config.pickToDetail()) {
+            // 等选应用页的 pop 转场结束再 push 详情，否则动画会被打断。
+            // consume 必须放在最后：提前清空 pending 会改变 LaunchedEffect 的 key 并取消协程。
+            delay(320)
+            onOpenDetail(entry.packageName)
+        }
         onPendingInstalledConsumed()
     }
 
@@ -214,7 +251,7 @@ fun CatalogScreen(
     }
 
     PageScaffold(
-        titleRes = R.string.page_catalog,
+        titleRes = R.string.page_home,
         bottomPadding = bottomPadding,
         actions = {
             Box {
@@ -306,25 +343,40 @@ fun CatalogScreen(
                 }
             }
 
+            // ---------------------------------------------------------- 搜索
+            item {
+                TextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    label = stringResource(R.string.catalog_search_hint),
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+            }
+
             // ---------------------------------------------------------- 列表
             if (entries.isEmpty()) {
                 item { EmptyState() }
+            } else if (visibleEntries.isEmpty()) {
+                item { SearchEmptyState() }
             } else {
                 item {
                     SmallTitle(
-                        text = stringResource(R.string.catalog_list_title, entries.size),
+                        text = stringResource(R.string.catalog_list_title, visibleEntries.size),
                     )
                 }
-                items(entries, key = { it.packageName }) { entry ->
+                items(visibleEntries, key = { it.packageName }) { entry ->
                     SignEntryCard(
                         entry = entry,
-                        onClick = { editing = entry },
+                        onClick = { onOpenDetail(entry.packageName) },
                         onLongClick = { deleting = entry },
                         onToggle = { enabled ->
                             // 还没填伪造签名就打开开关的话，先让用户把签名填了 ——
                             // 否则开关是"开"的但 effective 依然是 false，容易误解。
                             if (enabled && entry.forgedSignature.isBlank()) {
-                                editing = entry
+                                onOpenDetail(entry.packageName)
                             } else {
                                 SignStore.setEnabled(entry.packageName, enabled)
                             }
@@ -336,26 +388,6 @@ fun CatalogScreen(
         }
 
         // ---------------------------------------------------------------- 对话框
-        // 保存时 setForged + setEnabled(true)，也就是"填了就生效"。
-        val editTarget = editing
-        TextInputDialog(
-            show = editTarget != null,
-            title = stringResource(R.string.catalog_edit_title),
-            summary = editTarget?.let {
-                stringResource(R.string.catalog_edit_summary, it.apkName, it.packageName)
-            },
-            initial = editTarget?.forgedSignature.orEmpty(),
-            validate = ::isHexSignature,
-            errorMessage = stringResource(R.string.catalog_edit_error),
-            onAccept = { hex ->
-                editTarget?.let {
-                    SignStore.setForged(it.packageName, hex)
-                    SignStore.setEnabled(it.packageName, true)
-                }
-            },
-            onDismiss = { editing = null },
-        )
-
         // 长按删除
         val deleteTarget = deleting
         MessageDialog(
@@ -470,6 +502,8 @@ private fun SignEntryCard(
 ) {
     val icon = rememberAppIcon(entry.packageName)
     val forged = entry.forgedSignature
+    val clipboard = LocalClipboardManager.current
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     Card(
         modifier = Modifier
@@ -508,15 +542,14 @@ private fun SignEntryCard(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = stringResource(
-                        R.string.catalog_original_signature,
-                        SignatureUtil.prettifyHex(entry.originalSignature),
-                    ),
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    style = MiuixTheme.textStyles.footnote2,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+                SignaturePreview(
+                    signature = entry.originalSignature,
+                    lines = 5,
+                    onClick = onShowSignature,
+                    onLongClick = {
+                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(entry.originalSignature))
+                        Toast.makeText(context, context.getString(R.string.common_copied), Toast.LENGTH_SHORT).show()
+                    },
                 )
                 Text(
                     text = if (forged.isBlank()) {
@@ -557,6 +590,26 @@ private fun SignEntryCard(
             Switch(
                 checked = entry.isForged,
                 onCheckedChange = onToggle,
+            )
+        }
+    }
+}
+
+/** 搜索无结果。 */
+@Composable
+private fun SearchEmptyState() {
+    Card(modifier = Modifier.cardPadding()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.catalog_no_match),
+                color = MiuixTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.title3,
             )
         }
     }

@@ -1,6 +1,7 @@
 package com.xiang.signhelper.util
 
 import android.util.Log
+import com.xiang.signhelper.config.Config
 
 /**
  * 统一日志出口。
@@ -26,6 +27,7 @@ object LogX {
     fun e(message: String, t: Throwable? = null) = emit(Log.ERROR, message, t)
 
     private fun emit(priority: Int, message: String, tr: Throwable? = null) {
+        if (Config.logLevel() == 0) return
         val text = if (tr == null) message else "$message\n${Log.getStackTraceString(tr)}"
         // 1) logcat：任何进程、任何设备都能用 adb 看
         runCatching { Log.println(priority, TAG, text) }
