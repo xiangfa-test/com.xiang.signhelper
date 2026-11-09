@@ -146,7 +146,6 @@ fun SettingsScreen(
                 Card(modifier = Modifier.cardPadding()) {
                     ArrowPreference(
                         title = stringResource(R.string.settings_replay_oobe),
-                        summary = stringResource(R.string.settings_replay_oobe_summary),
                         onClick = {
                             Config.setOobeDone(false)
                             onReplayOobe()
