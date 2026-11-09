@@ -1,5 +1,19 @@
 # 签名助手（SignHelper）
 
+<p align="center">
+  <a href="https://github.com/xiangfa-test/com.xiang.signhelper/releases"><img src="https://img.shields.io/github/v/release/xiangfa-test/com.xiang.signhelper?label=release&color=0aa1dd" alt="Release"></a>
+  <a href="https://github.com/xiangfa-test/com.xiang.signhelper/releases"><img src="https://img.shields.io/github/downloads/xiangfa-test/com.xiang.signhelper/total?label=downloads&color=2ea44f" alt="Downloads"></a>
+  <a href="https://github.com/xiangfa-test/com.xiang.signhelper/stargazers"><img src="https://img.shields.io/github/stars/xiangfa-test/com.xiang.signhelper?label=stars&color=e3b341" alt="Stars"></a>
+  <img src="https://img.shields.io/badge/license-GPL--3.0--only-8957e5" alt="License">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Android-13%2B-3ddc84?logo=android&logoColor=white" alt="Android 13+">
+  <img src="https://img.shields.io/badge/LSPosed-module-6f42c1" alt="LSPosed module">
+  <a href="https://t.me/onelazyfish"><img src="https://img.shields.io/badge/Telegram-%E4%BA%A4%E6%B5%81%E9%A2%91%E9%81%93-26A5E4?logo=telegram&logoColor=white" alt="Telegram 交流频道"></a>
+  <a href="https://t.me/xiangfa_channel"><img src="https://img.shields.io/badge/Telegram-%E5%8F%91%E5%B8%83%E9%A2%91%E9%81%93-26A5E4?logo=telegram&logoColor=white" alt="Telegram 发布频道"></a>
+</p>
+
 对**简单签名校验**通杀的 LSPosed 模块：被 hook 的应用通过 `PackageManager`
 读取列表里某个应用的签名时，返回模块里为该应用设置的伪造签名。
 
@@ -49,6 +63,11 @@
 - `entries_json`：完整条目（UI 用）
 - `forged_packages`：生效中的包名（`\n` 分隔）
 - `sig:<包名>`：该包的伪造签名（hex）
+
+## 交流
+
+- Telegram 交流频道：https://t.me/onelazyfish
+- Telegram 发布频道：https://t.me/xiangfa_channel
 
 ## License
 
