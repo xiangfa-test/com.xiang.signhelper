@@ -101,7 +101,6 @@
     <string name="settings_pick_detail_summary">Controls what the app does when returning</string>
     <string name="settings_developer">Developer</string>
     <string name="settings_replay_oobe">OOBE</string>
-    <string name="settings_replay_oobe_summary">Show welcome, basics and disclaimer again</string>
     <string name="oobe_welcome_title">Welcome to SignHelper</string>
     <string name="oobe_welcome_body">When a hooked app reads another app signature through PackageManager, SignHelper replaces it with a forged signature you configured.\n\nIt only patches PackageInfo.signatures, for simple signature checks.</string>
     <string name="oobe_basics_title">Basics</string>
@@ -130,4 +129,5 @@
     <string name="settings_language_system">System</string>
     <string name="settings_language_zh">中文</string>
     <string name="settings_language_en">English</string>
+    <string name="catalog_known_bugs">This version has some known bugs</string>
 </resources>

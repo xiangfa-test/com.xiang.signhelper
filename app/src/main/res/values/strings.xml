@@ -107,7 +107,6 @@
     <string name="settings_pick_detail_summary">控制返回时应用需执行的行为</string>
     <string name="settings_developer">开发者设置</string>
     <string name="settings_replay_oobe">OOBE</string>
-    <string name="settings_replay_oobe_summary">再次播放欢迎、基础操作与免责协议</string>
     <string name="oobe_welcome_title">欢迎使用签名助手</string>
     <string name="oobe_welcome_body">签名助手可以在被 hook 的应用读取其他应用签名时，把签名替换成你设置的伪造签名。\n\n它只处理 PackageManager 返回的 PackageInfo.signatures，用于绕过简单的签名校验。</string>
     <string name="oobe_basics_title">基础操作</string>
@@ -136,4 +135,5 @@
     <string name="settings_language_system">跟随系统</string>
     <string name="settings_language_zh">中文</string>
     <string name="settings_language_en">English</string>
+    <string name="catalog_known_bugs">当前版本存在部分已知 bug</string>
 </resources>
