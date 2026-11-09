@@ -95,7 +95,7 @@ fun CatalogScreen(
     pendingInstalledPackage: String? = null,
     onPendingInstalledConsumed: () -> Unit = {},
     onOpenInstalledPicker: () -> Unit = {},
-    onOpenDetail: (String) -> Unit = {},
+    onOpenDetail: (String, Boolean) -> Unit = { _, _ -> },
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -219,12 +219,10 @@ fun CatalogScreen(
             return@LaunchedEffect
         }
         val entry = upsert(meta)
-        if (Config.pickToDetail()) {
-            // 等选应用页的 pop 转场结束再 push 详情，否则动画会被打断。
-            // consume 必须放在最后：提前清空 pending 会改变 LaunchedEffect 的 key 并取消协程。
-            delay(320)
-            onOpenDetail(entry.packageName)
-        }
+        // 从选择页进来：等 pop 转场结束再 push 详情，否则动画会被打断。
+        // consume 必须放在最后：提前清空 pending 会改变 LaunchedEffect 的 key 并取消协程。
+        delay(320)
+        onOpenDetail(entry.packageName, true)
         onPendingInstalledConsumed()
     }
 
@@ -366,13 +364,13 @@ fun CatalogScreen(
                 items(visibleEntries, key = { it.packageName }) { entry ->
                     SignEntryCard(
                         entry = entry,
-                        onClick = { onOpenDetail(entry.packageName) },
+                        onClick = { onOpenDetail(entry.packageName, false) },
                         onLongClick = { deleting = entry },
                         onToggle = { enabled ->
                             // 还没填伪造签名就打开开关的话，先让用户把签名填了 ——
                             // 否则开关是"开"的但 effective 依然是 false，容易误解。
                             if (enabled && entry.forgedSignature.isBlank()) {
-                                onOpenDetail(entry.packageName)
+                                onOpenDetail(entry.packageName, false)
                             } else {
                                 SignStore.setEnabled(entry.packageName, enabled)
                             }

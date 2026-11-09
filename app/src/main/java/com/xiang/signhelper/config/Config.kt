@@ -225,6 +225,13 @@ object Config {
         set(Key.PICK_TO_DETAIL, enabled.toString())
     }
 
+    /** 应用详细页返回目标：home=主页，list=应用列表。默认 list。 */
+    fun pickTarget(): String = getString(Key.PICK_TARGET) ?: "list"
+
+    fun setPickTarget(target: String) {
+        set(Key.PICK_TARGET, target)
+    }
+
     /** 0=关闭，1=一般（启动/hook/签名修改），2=详细。默认一般。 */
     fun logLevel(): Int = getString(Key.LOG_LEVEL)?.toIntOrNull() ?: 1
 
@@ -256,7 +263,8 @@ object Config {
         /** 完整条目列表（JSON array 文本），只有 UI 读。 */
         const val ENTRIES_JSON = "entries_json"
 
-        /** 已启用的目标包名，`\n` 分隔；`""` 表示空。 */
+        /** 已启用的目标包名，`
+` 分隔；`""` 表示空。 */
         const val FORGED_PACKAGES = "forged_packages"
 
         /** 前缀：`sig:<包名>` = 该包的伪造签名 hex。 */
@@ -267,6 +275,9 @@ object Config {
 
         /** 选择应用后是否进入详情页（"true" / "false"）。 */
         const val PICK_TO_DETAIL = "pick_to_detail"
+
+        /** 应用详细页返回目标 home/list；默认 list。 */
+        const val PICK_TARGET = "pick_target"
 
         /** 日志级别 0/1/2；默认 1。 */
         const val LOG_LEVEL = "log_level"

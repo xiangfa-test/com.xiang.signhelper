@@ -15,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
+import com.xiang.signhelper.config.Config
 import com.xiang.signhelper.data.SignStore
 import com.xiang.signhelper.ui.navigation3.LocalNavigator
 import com.xiang.signhelper.ui.navigation3.Route
@@ -108,7 +109,12 @@ class MainActivity : ComponentActivity() {
                             entry<Route.EntryDetail>(swipeDismiss = swipeDismiss) { entry ->
                                 EntryDetailScreen(
                                     packageName = entry.packageName,
-                                    onBack = { navigator.pop() },
+                                    onBack = {
+                                        navigator.pop()
+                                        if (entry.fromPicker && Config.pickTarget() == "list") {
+                                            navigator.push(Route.InstalledPicker)
+                                        }
+                                    },
                                 )
                             }
                         }

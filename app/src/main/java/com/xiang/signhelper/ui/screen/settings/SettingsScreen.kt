@@ -32,7 +32,7 @@ fun SettingsScreen(
     onReplayOobe: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    var pickDetail by remember { mutableStateOf(Config.pickToDetail()) }
+    var pickTarget by remember { mutableStateOf(Config.pickTarget()) }
     var logLevel by remember { mutableStateOf(Config.logLevel()) }
     var logLang by remember { mutableStateOf(Config.logLanguage()) }
     var appLang by remember { mutableStateOf(Config.appLanguage()) }
@@ -73,10 +73,10 @@ fun SettingsScreen(
                             stringResource(R.string.settings_pick_target_detail),
                             stringResource(R.string.settings_pick_target_list),
                         ),
-                        selectedIndex = if (pickDetail) 0 else 1,
+                        selectedIndex = if (pickTarget == "home") 0 else 1,
                         onSelectedIndexChange = { index ->
-                            pickDetail = index == 0
-                            Config.setPickToDetail(pickDetail)
+                            pickTarget = if (index == 0) "home" else "list"
+                            Config.setPickTarget(pickTarget)
                         },
                     )
                 }

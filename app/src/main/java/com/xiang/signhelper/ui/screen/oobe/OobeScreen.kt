@@ -73,7 +73,7 @@ import top.yukonga.miuix.kmp.utils.PressFeedbackType
 @Composable
 fun OobeScreen(onDone: () -> Unit) {
     val scope = rememberCoroutineScope()
-    var pickDetail by remember { mutableStateOf(Config.pickToDetail()) }
+    var pickTarget by remember { mutableStateOf(Config.pickTarget()) }
     var introDone by remember { mutableStateOf(false) }
     var exiting by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -115,7 +115,7 @@ fun OobeScreen(onDone: () -> Unit) {
                                 pagerState.animateScrollToPage(pagerState.currentPage + 1)
                             }
                         } else {
-                            Config.setPickToDetail(pickDetail)
+                            Config.setPickTarget(pickTarget)
                             Config.setOobeDone(true)
                             exiting = true
                         }
@@ -142,8 +142,8 @@ fun OobeScreen(onDone: () -> Unit) {
                         1 -> BasicsPage(active)
                         2 -> BehaviorAndDisclaimerPage(
                             active = active,
-                            pickDetail = pickDetail,
-                            onPickChanged = { pickDetail = it },
+                            pickTarget = pickTarget,
+                            onPickChanged = { pickTarget = it },
                         )
                         else -> SuccessPage(active)
                     }
@@ -374,8 +374,8 @@ private fun BasicsPage(active: Boolean) {
 @Composable
 private fun BehaviorAndDisclaimerPage(
     active: Boolean,
-    pickDetail: Boolean,
-    onPickChanged: (Boolean) -> Unit,
+    pickTarget: String,
+    onPickChanged: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         StaggerItem(active = active, index = 0) {
@@ -399,14 +399,14 @@ private fun BehaviorAndDisclaimerPage(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OobeChoiceCard(
                     text = stringResource(R.string.oobe_pick_detail),
-                    selected = pickDetail,
-                    onClick = { onPickChanged(true) },
+                    selected = pickTarget == "home",
+                    onClick = { onPickChanged("home") },
                     modifier = Modifier.weight(1f),
                 )
                 OobeChoiceCard(
                     text = stringResource(R.string.oobe_pick_list),
-                    selected = !pickDetail,
-                    onClick = { onPickChanged(false) },
+                    selected = pickTarget == "list",
+                    onClick = { onPickChanged("list") },
                     modifier = Modifier.weight(1f),
                 )
             }

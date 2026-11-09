@@ -114,7 +114,9 @@ fun MainScreen(
                             pendingInstalledPackage = pendingInstalledPackage,
                             onPendingInstalledConsumed = onPendingInstalledConsumed,
                             onOpenInstalledPicker = onOpenInstalledPicker,
-                            onOpenDetail = { navigator.push(Route.EntryDetail(it)) },
+                            onOpenDetail = { packageName, fromPicker ->
+                                navigator.push(Route.EntryDetail(packageName, fromPicker))
+                            },
                         )
 
                         BottomBarDestination.Settings -> SettingsScreen(
