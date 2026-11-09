@@ -285,3 +285,63 @@ fun TextInputDialog(
         }
     }
 }
+
+/**
+ * 只读的签名信息对话框：展示从安装包里读出的包名与原始签名，可复制关闭。
+ *
+ * 「选择 APK」只做这件事 —— 看/复制签名原始数据，不往伪装列表里加东西。
+ */
+@Composable
+fun SignatureInfoDialog(
+    show: Boolean,
+    title: String,
+    apkName: String,
+    packageName: String,
+    signature: String,
+    onDismiss: () -> Unit,
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val copiedText = stringResource(R.string.common_copied)
+    OverlayDialog(
+        show = show,
+        title = title,
+        summary = stringResource(R.string.catalog_apk_signature_summary),
+        onDismissRequest = onDismiss,
+    ) {
+        Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = apkName,
+                color = MiuixTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.body1,
+            )
+            Text(
+                text = packageName,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.footnote2,
+            )
+            androidx.compose.foundation.text.selection.SelectionContainer {
+                Text(
+                    text = com.xiang.signhelper.util.SignatureUtil.prettifyHex(signature),
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MiuixTheme.textStyles.footnote2,
+                )
+            }
+            Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)) {
+                TextButton(
+                    text = stringResource(R.string.common_copy),
+                    onClick = {
+                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(signature))
+                        android.widget.Toast.makeText(context, copiedText, android.widget.Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                    text = stringResource(R.string.common_ok),
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}

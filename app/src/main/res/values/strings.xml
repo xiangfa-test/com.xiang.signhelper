@@ -22,8 +22,12 @@
     <string name="catalog_pick_installed_summary">直接从本机已安装的应用里选一个，读取它当前的签名</string>
     <string name="catalog_pick_installed_failed">读取该已安装应用的签名失败，请重试。</string>
     <string name="catalog_pick">选择 APK</string>
-    <string name="catalog_pick_summary">从存储中挑一个安装包，读取它的包名与原始签名</string>
+    <string name="catalog_pick_summary">仅读取安装包的包名与签名原始数据，不会加入伪装列表</string>
     <string name="catalog_pick_reading">正在读取安装包…</string>
+    <string name="catalog_apk_signature_title">APK 签名信息</string>
+    <string name="catalog_apk_signature_summary">以下数据仅用于查看和复制，不会加入伪装列表。</string>
+    <string name="common_copy">复制</string>
+    <string name="common_copied">已复制签名</string>
     <string name="catalog_pick_failed_title">读取失败</string>
     <string name="catalog_pick_failed">无法读取该 APK 的包名或签名信息，请换一个文件再试。</string>
     <string name="catalog_pick_no_picker">没有找到可用的文件选择器。</string>

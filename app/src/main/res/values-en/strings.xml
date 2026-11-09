@@ -17,8 +17,12 @@
     <string name="catalog_pick_installed_summary">Pick an app installed on this device and read its current signature</string>
     <string name="catalog_pick_installed_failed">Could not read the signature of that installed app. Try again.</string>
     <string name="catalog_pick">Choose APK</string>
-    <string name="catalog_pick_summary">Pick an installation package and read its package name and original signature</string>
+    <string name="catalog_pick_summary">Read only the package name and raw signature; it will not be added to the spoof list</string>
     <string name="catalog_pick_reading">Reading the package…</string>
+    <string name="catalog_apk_signature_title">APK signature info</string>
+    <string name="catalog_apk_signature_summary">Shown for preview and copying only; it will not be added to the spoof list.</string>
+    <string name="common_copy">Copy</string>
+    <string name="common_copied">Signature copied</string>
     <string name="catalog_pick_failed_title">Read failed</string>
     <string name="catalog_pick_failed">Could not read the package name or signature of that APK. Try another file.</string>
     <string name="catalog_pick_no_picker">No document picker is available.</string>

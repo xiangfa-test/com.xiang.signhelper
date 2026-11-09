@@ -34,6 +34,7 @@ import com.xiang.signhelper.data.SignStore
 import com.xiang.signhelper.ui.component.AppIcon
 import com.xiang.signhelper.ui.component.MessageDialog
 import com.xiang.signhelper.ui.component.PageScaffold
+import com.xiang.signhelper.ui.component.SignatureInfoDialog
 import com.xiang.signhelper.ui.component.TextInputDialog
 import com.xiang.signhelper.ui.component.cardPadding
 import com.xiang.signhelper.ui.component.pageScroll
@@ -68,9 +69,10 @@ private fun isHexSignature(text: String): Boolean =
  *
  * - **选择已安装应用**：跳二级页（[com.xiang.signhelper.ui.screen.installed.InstalledAppPickerScreen]）
  *   挑一个系统里已装的应用，回来由本页读它的真实签名并入库；
- * - **选择 APK**：SAF 选安装包文件，`readSignatureFromApk` 解析包名/签名。
+ * - **选择 APK**：SAF 选安装包文件，只读取并展示包名/签名原始数据（可复制），
+ *   **不会**加入伪装列表；伪装目标只从「选择已安装应用」来。
  *
- * 选中之后都会直接弹「编辑伪造签名」。
+ * 「选择已安装应用」选中后弹「编辑伪造签名」。
  */
 @Composable
 fun CatalogScreen(
@@ -98,6 +100,8 @@ fun CatalogScreen(
     var showClearDialog by remember { mutableStateOf(false) }
     var pickError by remember { mutableStateOf<String?>(null) }
     var reading by remember { mutableStateOf(false) }
+    // 「选择 APK」只读取并展示签名原始数据，不加入伪装列表。
+    var apkSignature by remember { mutableStateOf<SignatureUtil.ApkMeta?>(null) }
 
     /** 把一条应用信息写进列表；同包名已存在时合并（保留已填的伪造签名）。 */
     fun upsert(meta: SignatureUtil.ApkMeta): SignEntry {
@@ -148,7 +152,7 @@ fun CatalogScreen(
                 pickError = failedApkText
                 return@launch
             }
-            editing = upsert(meta)
+            apkSignature = meta
         }
     }
 
@@ -272,6 +276,17 @@ fun CatalogScreen(
                 showClearDialog = false
             },
             onDismiss = { showClearDialog = false },
+        )
+
+        // APK 原始签名信息（只读，不进伪装列表）
+        val pickedApk = apkSignature
+        SignatureInfoDialog(
+            show = pickedApk != null,
+            title = stringResource(R.string.catalog_apk_signature_title),
+            apkName = pickedApk?.apkName.orEmpty(),
+            packageName = pickedApk?.packageName.orEmpty(),
+            signature = pickedApk?.signatureHex.orEmpty(),
+            onDismiss = { apkSignature = null },
         )
 
         // 读取失败
