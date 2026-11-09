@@ -7,6 +7,8 @@ import android.content.pm.PackageManager
 import android.content.pm.Signature
 import android.graphics.drawable.Drawable
 import android.net.Uri
+import org.json.JSONArray
+import org.json.JSONObject
 import android.provider.OpenableColumns
 import java.io.File
 
@@ -123,6 +125,46 @@ object SignatureUtil {
                 "，耗时 ${android.os.SystemClock.elapsedRealtime() - startedAt}ms",
         )
         return InstalledAppsResult(apps, restricted)
+    }
+
+    /** 读取已安装应用列表缓存；没有缓存/解析失败返回 null。 */
+    fun loadInstalledAppsCache(context: Context): List<InstalledApp>? = runCatching {
+        val file = java.io.File(context.filesDir, "installed_apps_cache.json")
+        if (!file.exists()) return null
+        val array = JSONArray(file.readText())
+        val out = ArrayList<InstalledApp>(array.length())
+        for (i in 0 until array.length()) {
+            val obj = array.optJSONObject(i) ?: continue
+            val pkg = obj.optString("packageName").trim()
+            if (pkg.isEmpty()) continue
+            out.add(
+                InstalledApp(
+                    packageName = pkg,
+                    label = obj.optString("label", pkg),
+                    isSystem = obj.optBoolean("isSystem", false),
+                    lastUpdateTime = obj.optLong("lastUpdateTime", 0L),
+                ),
+            )
+        }
+        out
+    }.onFailure { LogX.w("读取已安装应用缓存失败：${it.message}") }.getOrNull()
+
+    /** 缓存已安装应用列表（下次打开先展示缓存，再按数量变化增量刷新）。 */
+    fun saveInstalledAppsCache(context: Context, apps: List<InstalledApp>) {
+        runCatching {
+            val array = JSONArray()
+            apps.forEach { app ->
+                array.put(
+                    JSONObject().apply {
+                        put("packageName", app.packageName)
+                        put("label", app.label)
+                        put("isSystem", app.isSystem)
+                        put("lastUpdateTime", app.lastUpdateTime)
+                    },
+                )
+            }
+            java.io.File(context.filesDir, "installed_apps_cache.json").writeText(array.toString())
+        }.onFailure { LogX.w("写入已安装应用缓存失败：${it.message}") }
     }
 
     /** 权限被限制时，靠 intent / provider 反查包名。 */

@@ -49,6 +49,7 @@ import top.yukonga.miuix.kmp.basic.ListPopupColumn
 import top.yukonga.miuix.kmp.basic.ListPopupDefaults
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.PopupPositionProvider
+import top.yukonga.miuix.kmp.basic.PullToRefresh
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
@@ -86,7 +87,9 @@ fun InstalledAppPickerScreen(
 ) {
     val context = LocalContext.current
 
-    var apps by remember { mutableStateOf<List<SignatureUtil.InstalledApp>?>(null) }
+    // 先读缓存：进程被杀后再次打开也能立刻看到列表。
+    var apps by remember { mutableStateOf(SignatureUtil.loadInstalledAppsCache(context)) }
+    var refreshing by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var scopeFilter by remember { mutableStateOf(AppScope.USER) }
     var sort by remember { mutableStateOf(AppSort.UPDATED) }
@@ -105,10 +108,15 @@ fun InstalledAppPickerScreen(
     BackHandler(onBack = onBack)
 
     LaunchedEffect(reloadToken) {
-        apps = null
+        val cached = apps
         val result = withContext(Dispatchers.IO) { SignatureUtil.listInstalledApps(context) }
-        apps = result.apps
         restricted = result.restricted
+        // 数量没变就继续用缓存（内容不闪、不重排）；变了才换新列表。
+        if (cached == null || cached.size != result.apps.size) {
+            apps = result.apps
+            withContext(Dispatchers.IO) { SignatureUtil.saveInstalledAppsCache(context, result.apps) }
+        }
+        refreshing = false
         if (result.restricted && !permissionAsked) {
             permissionAsked = true
             showPermissionDialog = true
@@ -285,6 +293,15 @@ fun InstalledAppPickerScreen(
             }
         },
     ) { innerPadding ->
+        PullToRefresh(
+            isRefreshing = refreshing,
+            onRefresh = {
+                refreshing = true
+                reloadToken++
+            },
+            contentPadding = innerPadding,
+            topAppBarScrollBehavior = scrollBehavior,
+        ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -355,6 +372,7 @@ fun InstalledAppPickerScreen(
                     }
                 }
             }
+        }
         }
     }
 
