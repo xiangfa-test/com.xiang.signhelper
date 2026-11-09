@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Spacer
@@ -389,5 +391,43 @@ fun SignatureInfoDialog(
                 )
             }
         }
+    }
+}
+/**
+ * 签名预览：按可用宽度把 hex 切成等宽多行（默认 5 行），铺满宽度。
+ * 单击 [onClick]（展开详情），长按 [onLongClick]（复制）。
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun SignaturePreview(
+    signature: String,
+    modifier: Modifier = Modifier,
+    lines: Int = 5,
+    onClick: () -> Unit = {},
+    onLongClick: () -> Unit = {},
+) {
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxWidth()
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+    ) {
+        val density = LocalDensity.current
+        val measurer = rememberTextMeasurer()
+        val style = MiuixTheme.textStyles.footnote2.copy(
+            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+            fontSize = 10.sp,
+            lineHeight = 14.sp,
+        )
+        val samplePx = with(density) { measurer.measure("0".repeat(16), style).size.width.toFloat() }
+        val charWidthPx = (samplePx / 16f).coerceAtLeast(1f)
+        val availablePx = with(density) { maxWidth.toPx() } - 2f
+        val perLine = (((availablePx / charWidthPx).toInt()) / 2 * 2).coerceAtLeast(16)
+        Text(
+            text = signature.chunked(perLine).take(lines).joinToString("\n").ifBlank { "—" },
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = style,
+            maxLines = lines,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+        )
     }
 }

@@ -208,6 +208,44 @@ object Config {
         }.getOrDefault(emptyMap())
     }
 
+    /** OOBE 是否已经走完。 */
+    fun isOobeDone(): Boolean = getString(Key.OOBE_DONE) == "1"
+
+    fun setOobeDone(done: Boolean) {
+        set(Key.OOBE_DONE, if (done) "1" else "0")
+    }
+
+    /**
+     * 选择已安装应用后：true = 打开应用信息二级页；false = 回到应用列表。
+     * 默认 true（和以前「选完弹详情」的行为一致）。
+     */
+    fun pickToDetail(): Boolean = getString(Key.PICK_TO_DETAIL)?.toBooleanStrictOrNull() ?: true
+
+    fun setPickToDetail(enabled: Boolean) {
+        set(Key.PICK_TO_DETAIL, enabled.toString())
+    }
+
+    /** 0=关闭，1=一般（启动/hook/签名修改），2=详细。默认一般。 */
+    fun logLevel(): Int = getString(Key.LOG_LEVEL)?.toIntOrNull() ?: 1
+
+    fun setLogLevel(level: Int) {
+        set(Key.LOG_LEVEL, level.toString())
+    }
+
+    /** 日志语言：en / zh，默认 English。 */
+    fun logLanguage(): String = getString(Key.LOG_LANG) ?: "en"
+
+    fun setLogLanguage(lang: String) {
+        set(Key.LOG_LANG, lang)
+    }
+
+    /** 应用界面语言：system / zh-CN / en，默认跟随系统。 */
+    fun appLanguage(): String = getString(Key.APP_LANG) ?: "system"
+
+    fun setAppLanguage(tag: String) {
+        set(Key.APP_LANG, tag)
+    }
+
     /**
      * 本模块用到的键。
      *
@@ -223,5 +261,20 @@ object Config {
 
         /** 前缀：`sig:<包名>` = 该包的伪造签名 hex。 */
         const val SIG_PREFIX = "sig:"
+
+        /** OOBE 是否完成（"1" / "0"）。 */
+        const val OOBE_DONE = "oobe_done"
+
+        /** 选择应用后是否进入详情页（"true" / "false"）。 */
+        const val PICK_TO_DETAIL = "pick_to_detail"
+
+        /** 日志级别 0/1/2；默认 1。 */
+        const val LOG_LEVEL = "log_level"
+
+        /** 日志语言 en/zh；默认 en。 */
+        const val LOG_LANG = "log_lang"
+
+        /** 应用语言 system/zh-CN/en；默认 system。 */
+        const val APP_LANG = "app_lang"
     }
 }

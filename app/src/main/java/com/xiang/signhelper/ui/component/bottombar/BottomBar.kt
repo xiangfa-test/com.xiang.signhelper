@@ -11,6 +11,7 @@ import com.xiang.signhelper.R
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.GridView
 import top.yukonga.miuix.kmp.icon.extended.Info
+import top.yukonga.miuix.kmp.icon.extended.Settings
 
 /**
  * 底部导航的两个页签。
@@ -18,7 +19,7 @@ import top.yukonga.miuix.kmp.icon.extended.Info
  * 顺序与 `MainScreen` 里 `HorizontalPager` 的页序一一对应，
  * 所以这里用枚举的序号当页号，避免两处各写一遍索引。
  *
- * 本模块**只有这两页**：应用目录、关于。没有设置 / 外观 / 调试 / 状态入口。
+ * 本模块三页：应用目录、关于、设置。
  */
 enum class BottomBarDestination(
     @param:StringRes val label: Int,
@@ -27,7 +28,10 @@ enum class BottomBarDestination(
     /** 页签 0：应用目录（已加进列表的 APK + 它们的签名）。 */
     Catalog(R.string.page_catalog, MiuixIcons.GridView),
 
-    /** 页签 1：关于。 */
+    /** 页签 1：设置。 */
+    Settings(R.string.page_settings, MiuixIcons.Settings),
+
+    /** 页签 2：关于（最右侧固定）。 */
     About(R.string.page_about, MiuixIcons.Info),
 }
 

@@ -18,4 +18,7 @@ sealed interface Route : NavKey {
     data object Main : Route
 
     data object InstalledPicker : Route
+
+    /** 条目详情二级页；带包名参数，miuix-nav 负责转场与侧滑返回。 */
+    data class EntryDetail(val packageName: String) : Route
 }

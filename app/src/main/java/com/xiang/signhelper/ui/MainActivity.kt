@@ -19,6 +19,7 @@ import com.xiang.signhelper.data.SignStore
 import com.xiang.signhelper.ui.navigation3.LocalNavigator
 import com.xiang.signhelper.ui.navigation3.Route
 import com.xiang.signhelper.ui.navigation3.rememberNavigator
+import com.xiang.signhelper.ui.screen.detail.EntryDetailScreen
 import com.xiang.signhelper.ui.screen.installed.InstalledAppPickerScreen
 import com.xiang.signhelper.ui.screen.main.MainScreen
 import com.xiang.signhelper.ui.theme.AppTheme
@@ -102,6 +103,12 @@ class MainActivity : ComponentActivity() {
                                         pendingInstalledPackage = packageName
                                         navigator.pop()
                                     },
+                                )
+                            }
+                            entry<Route.EntryDetail>(swipeDismiss = swipeDismiss) { entry ->
+                                EntryDetailScreen(
+                                    packageName = entry.packageName,
+                                    onBack = { navigator.pop() },
                                 )
                             }
                         }

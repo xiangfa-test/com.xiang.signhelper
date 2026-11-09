@@ -463,6 +463,10 @@ private val ACKNOWLEDGEMENTS = listOf(
         title = R.string.about_lib_lsposed,
         url = "https://github.com/LSPosed/LSPosed",
     ),
+    Acknowledgement(
+        title = R.string.about_lib_hyperlyrics,
+        url = "https://github.com/juren233/HyperLyrics-Enhanced",
+    ),
 )
 
 private fun buildTime(): String = runCatching {
