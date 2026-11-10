@@ -222,11 +222,8 @@ fun CatalogScreen(
             onPendingInstalledConsumed()
             return@LaunchedEffect
         }
-        val entry = upsert(meta)
-        // 从选择页进来：等 pop 转场结束再 push 详情，否则动画会被打断。
-        // consume 必须放在最后：提前清空 pending 会改变 LaunchedEffect 的 key 并取消协程。
-        delay(320)
-        onOpenDetail(entry.packageName, true)
+        // 详情页由 MainActivity 在选择时直接 push；这里只负责入库，避免重复导航。
+        upsert(meta)
         onPendingInstalledConsumed()
     }
 

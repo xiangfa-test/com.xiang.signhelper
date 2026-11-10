@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.xiang.signhelper.R
+import com.xiang.signhelper.data.SignStore
 import com.xiang.signhelper.ui.component.AppRowCard
 import com.xiang.signhelper.ui.component.BlurredBar
 import com.xiang.signhelper.ui.component.LocalEnableBlur
@@ -90,6 +91,8 @@ fun InstalledAppPickerScreen(
     // 先读缓存：进程被杀后再次打开也能立刻看到列表。
     var apps by remember { mutableStateOf(SignatureUtil.loadInstalledAppsCache(context)) }
     var refreshing by remember { mutableStateOf(false) }
+    // 已选过的应用立即从列表里移除（本次选择流程全局生效）。
+    var pickedPackages by remember { mutableStateOf<Set<String>>(emptySet()) }
     var query by remember { mutableStateOf("") }
     var scopeFilter by remember { mutableStateOf(AppScope.USER) }
     var sort by remember { mutableStateOf(AppSort.UPDATED) }
@@ -136,15 +139,19 @@ fun InstalledAppPickerScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    val visibleApps = remember(apps, query, scopeFilter, sort, reversed) {
+    val configured = SignStore.entries
+    val visibleApps = remember(apps, query, scopeFilter, sort, reversed, pickedPackages, configured) {
         val keyword = query.trim()
+        val configuredPackages = configured.mapTo(HashSet()) { it.packageName }
         val filtered = apps.orEmpty().filter { app ->
             val scopeMatched = when (scopeFilter) {
                 AppScope.USER -> !app.isSystem
                 AppScope.SYSTEM -> app.isSystem
                 AppScope.ALL -> true
             }
-            scopeMatched && (
+            scopeMatched &&
+                app.packageName !in pickedPackages &&
+                app.packageName !in configuredPackages && (
                 keyword.isEmpty() ||
                     app.label.contains(keyword, ignoreCase = true) ||
                     app.packageName.contains(keyword, ignoreCase = true)
@@ -366,7 +373,10 @@ fun InstalledAppPickerScreen(
                                 title = app.label,
                                 summary = app.packageName,
                                 icon = rememberAppIcon(app.packageName),
-                                onClick = { onPick(app.packageName) },
+                                onClick = {
+                                    pickedPackages = pickedPackages + app.packageName
+                                    onPick(app.packageName)
+                                },
                             )
                         }
                     }

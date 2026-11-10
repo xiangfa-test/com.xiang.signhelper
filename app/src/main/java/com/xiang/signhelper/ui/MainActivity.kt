@@ -3,6 +3,7 @@ package com.xiang.signhelper.ui
 import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -16,9 +17,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import com.xiang.signhelper.config.Config
+import com.xiang.signhelper.data.SignEntry
+import com.xiang.signhelper.util.SignatureUtil
 import com.xiang.signhelper.data.SignStore
 import com.xiang.signhelper.ui.navigation3.LocalNavigator
 import com.xiang.signhelper.ui.navigation3.Route
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.xiang.signhelper.ui.navigation3.rememberNavigator
 import com.xiang.signhelper.ui.screen.detail.EntryDetailScreen
 import com.xiang.signhelper.ui.screen.installed.InstalledAppPickerScreen
@@ -101,8 +107,34 @@ class MainActivity : ComponentActivity() {
                                 InstalledAppPickerScreen(
                                     onBack = { navigator.pop() },
                                     onPick = { packageName ->
-                                        pendingInstalledPackage = packageName
-                                        navigator.pop()
+                                        // 先入库再 push：详情页打开时条目必须已经存在。
+                                        // 选择页保留在栈里，返回时才能直接回到列表。
+                                        lifecycleScope.launch {
+                                            val meta = withContext(Dispatchers.IO) {
+                                                runCatching {
+                                                    SignatureUtil.readInstalledApp(this@MainActivity, packageName)
+                                                }.getOrNull()
+                                            }
+                                            if (meta != null) {
+                                                val existing = SignStore.entries.firstOrNull {
+                                                    it.packageName == meta.packageName
+                                                }
+                                                SignStore.add(
+                                                    existing?.copy(
+                                                        apkName = meta.apkName,
+                                                        originalSignature = meta.signatureHex,
+                                                    ) ?: SignEntry(
+                                                        packageName = meta.packageName,
+                                                        apkName = meta.apkName,
+                                                        originalSignature = meta.signatureHex,
+                                                        forgedSignature = "",
+                                                        isForged = false,
+                                                    ),
+                                                )
+                                            }
+                                            pendingInstalledPackage = packageName
+                                            navigator.push(Route.EntryDetail(packageName, fromPicker = true))
+                                        }
                                     },
                                 )
                             }
@@ -111,8 +143,9 @@ class MainActivity : ComponentActivity() {
                                     packageName = entry.packageName,
                                     onBack = {
                                         navigator.pop()
-                                        if (entry.fromPicker && Config.pickTarget() == "list") {
-                                            navigator.push(Route.InstalledPicker)
+                                        // 返回主页：把选择页也弹掉；返回列表：保留选择页。
+                                        if (entry.fromPicker && Config.pickTarget() != "list") {
+                                            navigator.pop()
                                         }
                                     },
                                 )
