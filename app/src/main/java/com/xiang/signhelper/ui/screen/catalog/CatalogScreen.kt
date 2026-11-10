@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -141,6 +142,7 @@ fun CatalogScreen(
 
     // 对话框状态。用「目标条目」而不是布尔值：对话框标题/初值直接从目标上取。
     var deleting by remember { mutableStateOf<SignEntry?>(null) }
+    var showBugDialog by remember { mutableStateOf(false) }
     var showClearDialog by remember { mutableStateOf(false) }
     var pickError by remember { mutableStateOf<String?>(null) }
     var reading by remember { mutableStateOf(false) }
@@ -313,19 +315,20 @@ fun CatalogScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFFFFC107))
+                        .background(Color(0xFFD7F5DC))
+                        .clickable { showBugDialog = true }
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "⚠",
-                        color = Color(0xFF3A2A00),
+                        text = "ⓘ",
+                        color = Color(0xFF1B5E20),
                         style = MiuixTheme.textStyles.body2,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = stringResource(R.string.catalog_known_bugs),
-                        color = Color(0xFF3A2A00),
+                        color = Color(0xFF1B5E20),
                         style = MiuixTheme.textStyles.footnote1,
                     )
                 }
@@ -453,6 +456,16 @@ fun CatalogScreen(
             title = stringResource(R.string.catalog_pick_failed_title),
             summary = pickError,
             onDismiss = { pickError = null },
+        )
+
+        // 已知问题提醒
+        MessageDialog(
+            show = showBugDialog,
+            title = stringResource(R.string.catalog_known_bugs_title),
+            summary = stringResource(R.string.catalog_known_bugs_dialog),
+            confirmText = stringResource(R.string.common_got_it),
+            onConfirm = { showBugDialog = false },
+            onDismiss = { showBugDialog = false },
         )
 
         // 备份/恢复结果

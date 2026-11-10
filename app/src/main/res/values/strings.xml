@@ -135,5 +135,8 @@
     <string name="settings_language_system">跟随系统</string>
     <string name="settings_language_zh">中文</string>
     <string name="settings_language_en">English</string>
-    <string name="catalog_known_bugs">当前版本存在部分已知 bug</string>
+    <string name="catalog_known_bugs">该版本仍存在部分页面逻辑问题</string>
+    <string name="catalog_known_bugs_title">提示</string>
+    <string name="catalog_known_bugs_dialog">当前版本存在部分页面切换逻辑问题，等待后续修复</string>
+    <string name="common_got_it">知道了</string>
 </resources>
