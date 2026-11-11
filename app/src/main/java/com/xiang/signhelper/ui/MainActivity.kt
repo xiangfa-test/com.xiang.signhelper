@@ -133,7 +133,14 @@ class MainActivity : ComponentActivity() {
                                                 )
                                             }
                                             pendingInstalledPackage = packageName
-                                            navigator.push(Route.EntryDetail(packageName, fromPicker = true))
+                                            val detail = Route.EntryDetail(packageName, fromPicker = true)
+                                            if (Config.pickTarget() == "list") {
+                                                // 返回列表模式：保留选择页，详情压在它上面
+                                                navigator.push(detail)
+                                            } else {
+                                                // 返回主页模式：直接用详情替换选择页，栈里不留下列表
+                                                navigator.replace(detail)
+                                            }
                                         }
                                     },
                                 )
@@ -142,11 +149,9 @@ class MainActivity : ComponentActivity() {
                                 EntryDetailScreen(
                                     packageName = entry.packageName,
                                     onBack = {
+                                        // 返回主页模式下选择页已被详情替换，这里 pop 即回主页；
+                                        // 返回列表模式下选择页仍在栈中，pop 即回列表。
                                         navigator.pop()
-                                        // 返回主页：把选择页也弹掉；返回列表：保留选择页。
-                                        if (entry.fromPicker && Config.pickTarget() != "list") {
-                                            navigator.pop()
-                                        }
                                     },
                                 )
                             }
