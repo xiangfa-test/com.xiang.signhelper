@@ -72,6 +72,7 @@ fun EntryDetailScreen(
     var original by remember(current.packageName) { mutableStateOf(current.originalSignature) }
     var forged by remember(current.packageName) { mutableStateOf(current.forgedSignature) }
     var showInfo by remember { mutableStateOf(false) }
+    val prettyOriginal = remember(original) { SignatureUtil.prettifyHex(original) }
     BackHandler(onBack = onBack)
 
     val valid = isHex(forged)

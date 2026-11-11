@@ -5,7 +5,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
@@ -18,25 +19,46 @@ import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import com.xiang.signhelper.R
 import com.xiang.signhelper.util.SignatureUtil
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** 图标位图的目标像素尺寸，比 44dp 大一点，避免高密度屏上发糊。 */
 private const val ICON_PX = 144
 
 /**
+ * 图标缓存：详情页/列表反复进入时不重复查 PackageManager、不重复解码 drawable。
+ * 只在主线程读写（Compose 组合阶段），容量很小。
+ */
+private val iconCache = object : LinkedHashMap<String, ImageBitmap>(32, 0.75f, true) {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ImageBitmap>?): Boolean =
+        size > 64
+}
+
+/**
  * 取某个包的应用图标（未安装时退回本应用图标）。
  *
- * 结果按包名 remember：列表滚动/重组不会反复查 PackageManager。
+ * **异步加载**：PackageManager 查询与 drawable → bitmap 解码都放到 IO，
+ * 首帧先留空位。否则从列表进入详情页时会在主线程解码图标，卡住转场动画。
  */
 @Composable
 fun rememberAppIcon(packageName: String): ImageBitmap? {
     val context = LocalContext.current
-    return remember(packageName) {
-        runCatching {
-            val drawable = SignatureUtil.loadAppIcon(context, packageName)
-                ?: ContextCompat.getDrawable(context, R.drawable.ic_launcher)
-            drawable?.toBitmap(ICON_PX, ICON_PX)?.asImageBitmap()
-        }.getOrNull()
+    val bitmap by produceState<ImageBitmap?>(
+        initialValue = iconCache[packageName],
+        key1 = packageName,
+    ) {
+        if (value != null) return@produceState
+        val loaded = withContext(Dispatchers.IO) {
+            runCatching {
+                val drawable = SignatureUtil.loadAppIcon(context, packageName)
+                    ?: ContextCompat.getDrawable(context, R.drawable.ic_launcher)
+                drawable?.toBitmap(ICON_PX, ICON_PX)?.asImageBitmap()
+            }.getOrNull()
+        }
+        if (loaded != null) iconCache[packageName] = loaded
+        value = loaded
     }
+    return bitmap
 }
 
 /**
@@ -59,7 +81,7 @@ fun AppIcon(
                 .clip(RoundedCornerShape(cornerRadius)),
         )
     } else {
-        // 连兜底图标都拿不到（极小概率）时留一块占位，避免行高跳动
+        // 图标还在异步加载（或极端情况下拿不到）时留占位，避免行高跳动
         Spacer(
             modifier = Modifier
                 .size(size)
