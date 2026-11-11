@@ -22,6 +22,7 @@ import com.xiang.signhelper.util.SignatureUtil
 import com.xiang.signhelper.data.SignStore
 import com.xiang.signhelper.ui.navigation3.LocalNavigator
 import com.xiang.signhelper.ui.navigation3.Route
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -33,6 +34,8 @@ import com.xiang.signhelper.ui.theme.AppTheme
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.nav.core.NavDisplay
 import top.yukonga.miuix.kmp.nav.core.NavDisplayEffects
+import top.yukonga.miuix.kmp.nav.runtime.NavChange
+import top.yukonga.miuix.kmp.nav.transition.navGraphicsTransition
 import top.yukonga.miuix.kmp.nav.core.rememberNavSystemCornerRadius
 import top.yukonga.miuix.kmp.nav.transition.NavSwipeDirection
 
@@ -85,6 +88,27 @@ class MainActivity : ComponentActivity() {
                 NavSwipeDirection.LeftToRight
             }
 
+            // 选择页转场与 MiuixDefault 一致；MultiPop（主页模式：详情+选择页一起弹掉）
+            // 时让选择页彻底透明，避免多段 pop 期间闪一下应用列表。
+            val pickerTransition = remember {
+                navGraphicsTransition { scope ->
+                    val d = scope.relativeDepth
+                    val width = scope.layoutSize.width.toFloat()
+                    val rtl = scope.layoutDirection == LayoutDirection.Rtl
+                    if (d <= 0f) {
+                        translationX = ((if (rtl) -1f else 1f) * (-d).coerceIn(0f, 1f) * width)
+                            .roundToInt().toFloat()
+                    } else {
+                        translationX = (if (rtl) 1f else -1f) * d.coerceIn(0f, 1f) * width * 0.25f
+                        alpha = if (scope.change is NavChange.MultiPop) {
+                            0f
+                        } else {
+                            1f - 0.1f * d.coerceIn(0f, 1f)
+                        }
+                    }
+                }
+            }
+
             CompositionLocalProvider(LocalNavigator provides navigator) {
                 AppTheme {
                     Scaffold { _ ->
@@ -104,7 +128,7 @@ class MainActivity : ComponentActivity() {
                                     onOpenInstalledPicker = { navigator.push(Route.InstalledPicker) },
                                 )
                             }
-                            entry<Route.InstalledPicker>(swipeDismiss = swipeDismiss) {
+                            entry<Route.InstalledPicker>(transition = pickerTransition, swipeDismiss = swipeDismiss) {
                                 InstalledAppPickerScreen(
                                     onBack = { navigator.pop() },
                                     onPick = { packageName ->
@@ -134,15 +158,9 @@ class MainActivity : ComponentActivity() {
                                                 )
                                             }
                                             pendingInstalledPackage = packageName
-                                            val detail = Route.EntryDetail(packageName, fromPicker = true)
-                                            if (Config.pickTarget() == "list") {
-                                                // 返回列表模式：保留选择页，详情压在它上面（nav 自带动画）
-                                                navigator.push(detail)
-                                            } else {
-                                                // 返回主页模式：替换选择页，栈里不留列表；
-                                                // replace 深度不变不会触发 nav 动画，详情页自己做入场动画。
-                                                navigator.replace(detail)
-                                            }
+                                            // 始终 push：让 NavDisplay 跑真正的 MiuixDefault 转场，
+                                            // 选择页在下层做视差；主页模式返回时再一并弹出。
+                                            navigator.push(Route.EntryDetail(packageName, fromPicker = true))
                                         }
                                     },
                                 )
@@ -150,11 +168,13 @@ class MainActivity : ComponentActivity() {
                             entry<Route.EntryDetail>(swipeDismiss = swipeDismiss) { entry ->
                                 EntryDetailScreen(
                                     packageName = entry.packageName,
-                                    animateEnter = entry.fromPicker && Config.pickTarget() != "list",
                                     onBack = {
-                                        // 返回主页模式下选择页已被详情替换，这里 pop 即回主页；
-                                        // 返回列表模式下选择页仍在栈中，pop 即回列表。
-                                        navigator.pop()
+                                        if (entry.fromPicker && Config.pickTarget() != "list") {
+                                            // 主页模式：详情和选择页一次性弹掉；选择页在 MultiPop 中透明。
+                                            navigator.popUntil { it is Route.Main }
+                                        } else {
+                                            navigator.pop()
+                                        }
                                     },
                                 )
                             }

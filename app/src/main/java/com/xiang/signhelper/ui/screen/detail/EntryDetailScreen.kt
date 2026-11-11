@@ -71,8 +71,6 @@ private fun isHex(text: String): Boolean =
 @Composable
 fun EntryDetailScreen(
     packageName: String,
-    /** 由选择页 replace 进来时 nav 深度不变，需要自己做一次滑入动画。 */
-    animateEnter: Boolean = false,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -112,28 +110,6 @@ fun EntryDetailScreen(
     val valid = isHex(forged)
     val scrollBehavior = MiuixScrollBehavior()
 
-    // 与 Miuix NavTransitions.MiuixDefault 相同的动效：临界阻尼 spring（stiffness 146），
-    // 入场 translationX 从屏宽收敛到 0；不是 Android 的 Material slide/fade。
-    val enterProgress = remember { Animatable(if (animateEnter) 1f else 0f) }
-    LaunchedEffect(animateEnter) {
-        if (animateEnter) {
-            enterProgress.animateTo(
-                targetValue = 0f,
-                animationSpec = spring(dampingRatio = 1f, stiffness = 146f),
-            )
-        }
-    }
-    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .graphicsLayer {
-                val progress = enterProgress.value
-                translationX = (if (rtl) -1f else 1f) * progress * size.width
-                alpha = 1f - 0.1f * progress
-            },
-    ) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -237,7 +213,6 @@ fun EntryDetailScreen(
             }
             item { Spacer(modifier = Modifier.height(24.dp)) }
         }
-    }
     }
 
     if (showInfo) {
