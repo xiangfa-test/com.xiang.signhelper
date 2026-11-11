@@ -79,6 +79,7 @@ class MainActivity : ComponentActivity() {
 
             // 二级页选中的应用先存这里：选完 pop 回主页，再交给应用目录读签名/入库。
             var pendingInstalledPackage by remember { mutableStateOf<String?>(null) }
+            var pendingDetailPackage by remember { mutableStateOf<String?>(null) }
 
             // Miuix 的转场预设不带"可返回方向"，侧滑返回要按页注册（RTL 镜像）。
             val swipeDismiss = if (LocalLayoutDirection.current == LayoutDirection.Rtl) {
@@ -101,8 +102,8 @@ class MainActivity : ComponentActivity() {
                             // 容器页是栈底，不做侧滑返回
                             entry<Route.Main>(swipeDismiss = null) {
                                 MainScreen(
-                                    pendingInstalledPackage = pendingInstalledPackage,
-                                    onPendingInstalledConsumed = { pendingInstalledPackage = null },
+                                    pendingDetailPackage = pendingDetailPackage,
+                                    onPendingDetailConsumed = { pendingDetailPackage = null },
                                     onOpenInstalledPicker = { navigator.push(Route.InstalledPicker) },
                                 )
                             }
@@ -136,14 +137,8 @@ class MainActivity : ComponentActivity() {
                                                 )
                                             }
                                             pendingInstalledPackage = packageName
-                                            val detail = Route.EntryDetail(packageName, fromPicker = true)
-                                            if (Config.pickTarget() == "list") {
-                                                navigator.push(detail)
-                                            } else {
-                                                // 主页模式：直接替换选择页，返回即回主页；
-                                                // 不做多层 pop，避免闪列表与黑屏。
-                                                navigator.replace(detail)
-                                            }
+                                            pendingDetailPackage = packageName
+                                            navigator.pop()
                                         }
                                     },
                                 )
