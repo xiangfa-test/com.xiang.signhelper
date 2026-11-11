@@ -151,31 +151,27 @@ object SignStore {
         val array = runCatching { JSONObject(raw).optJSONArray("entries") }.getOrNull()
             ?: runCatching { JSONArray(raw) }.getOrNull()
             ?: return null
-        var added = 0
-        var replaced = 0
         var invalid = 0
-        synchronized(lock) {
-            val list = entriesState.value.toMutableList()
-            for (i in 0 until array.length()) {
-                val obj = array.optJSONObject(i)
-                val entry = obj?.let { SignEntry.fromJson(it) }?.let { normalize(it) }
-                if (entry == null) {
-                    invalid++
-                    continue
-                }
-                val index = list.indexOfFirst { it.packageName == entry.packageName }
-                if (index >= 0) {
-                    list[index] = entry
-                    replaced++
-                } else {
-                    list.add(entry)
-                    added++
-                }
+        val parsed = ArrayList<SignEntry>(array.length())
+        for (i in 0 until array.length()) {
+            val obj = array.optJSONObject(i)
+            val entry = obj?.let { SignEntry.fromJson(it) }?.let { normalize(it) }
+            if (entry == null) {
+                invalid++
+            } else {
+                parsed.add(entry)
             }
-            commit(list)
         }
-        LogX.i("恢复备份：新增 $added，覆盖 $replaced，跳过 $invalid")
-        return RestoreResult(added, replaced, invalid)
+        val merged = synchronized(lock) {
+            val result = mergeEntries(entriesState.value, parsed)
+            commit(result.entries)
+            result
+        }
+        LogX.i(
+            "恢复备份：新增 ${merged.added}，覆盖 ${merged.replaced}，跳过 $invalid",
+            "Restore complete: ${merged.added} added, ${merged.replaced} replaced, $invalid skipped",
+        )
+        return RestoreResult(merged.added, merged.replaced, invalid)
     }
 
     /** 更新条目的应用名与原始签名（列表里「重新获取签名信息」用）。 */
@@ -292,4 +288,32 @@ object SignStore {
     /** hex 统一成小写、去掉空白与常见分隔符（用户从日志/文件管理器里粘过来的会有）。 */
     private fun normalizeHex(hex: String): String =
         hex.filterNot { it.isWhitespace() || it == ':' || it == '-' }.lowercase()
+}
+
+/** 合并结果：最终列表 + 新增/覆盖条数。 */
+internal data class MergeOutcome(
+    val entries: List<SignEntry>,
+    val added: Int,
+    val replaced: Int,
+)
+
+/**
+ * 按包名把 [incoming] 合并进 [existing]：同包名覆盖，其他条目保持原顺序。
+ * 抽成纯函数便于单元测试，不触碰 SharedPreferences / Compose 状态。
+ */
+internal fun mergeEntries(existing: List<SignEntry>, incoming: List<SignEntry>): MergeOutcome {
+    val merged = existing.toMutableList()
+    var added = 0
+    var replaced = 0
+    incoming.forEach { entry ->
+        val index = merged.indexOfFirst { it.packageName == entry.packageName }
+        if (index >= 0) {
+            merged[index] = entry
+            replaced++
+        } else {
+            merged.add(entry)
+            added++
+        }
+    }
+    return MergeOutcome(merged, added, replaced)
 }

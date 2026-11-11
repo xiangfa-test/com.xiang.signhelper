@@ -91,7 +91,10 @@ class MainHook : XposedModule() {
 
     override fun onModuleLoaded(param: ModuleLoadedParam) {
         HookEnv.attach(this, param.processName)
-        LogX.i("模块已加载：process=${param.processName} api=$apiVersion framework=$frameworkName $frameworkVersion")
+        LogX.i(
+            "模块已加载：process=${param.processName} api=$apiVersion framework=$frameworkName $frameworkVersion",
+            "Module loaded: process=${param.processName} api=$apiVersion framework=$frameworkName $frameworkVersion",
+        )
     }
 
     /** 包的默认 ClassLoader 出现时触发（API 29+）。 */
@@ -124,7 +127,10 @@ class MainHook : XposedModule() {
     private fun installForPackage(packageName: String, classLoader: ClassLoader) {
         if (!installed.compareAndSet(false, true)) return
 
-        LogX.i("命中被注入包：$packageName（进程 ${HookEnv.currentProcessName}）")
+        LogX.i(
+            "命中被注入包：$packageName（进程 ${HookEnv.currentProcessName}）",
+            "Hooked package: $packageName (process ${HookEnv.currentProcessName})",
+        )
         // 读伪造表 + 顺手挂上变更监听（远程 prefs 若此刻还不可用，会在下次刷新时补挂）
         refreshForgedSignatures()
         installPackageInfoHooks(classLoader)
@@ -139,7 +145,10 @@ class MainHook : XposedModule() {
     private fun installPackageInfoHooks(classLoader: ClassLoader) {
         val clazz = runCatching { Class.forName(PACKAGE_MANAGER_IMPL, false, classLoader) }.getOrNull()
         if (clazz == null) {
-            LogX.e("找不到 $PACKAGE_MANAGER_IMPL，无法挂 getPackageInfo hook")
+            LogX.e(
+                "找不到 $PACKAGE_MANAGER_IMPL，无法挂 getPackageInfo hook",
+                "Cannot find $PACKAGE_MANAGER_IMPL; getPackageInfo hooks not installed",
+            )
             return
         }
 
@@ -162,9 +171,15 @@ class MainHook : XposedModule() {
         }
 
         if (count == 0) {
-            LogX.e("getPackageInfo 一个重载都没挂上（系统版本 / ROM 差异？）")
+            LogX.e(
+                "getPackageInfo 一个重载都没挂上（系统版本 / ROM 差异？）",
+                "No getPackageInfo overload was hooked (OS/ROM difference?)",
+            )
         } else {
-            LogX.i("getPackageInfo hook 安装完成：$count 个重载")
+            LogX.i(
+            "getPackageInfo hook 安装完成：$count 个重载",
+            "getPackageInfo hooks installed: $count overloads",
+        )
         }
     }
 
@@ -181,7 +196,10 @@ class MainHook : XposedModule() {
                     return forgeIfNeeded(result)
                 }
             })
-        LogX.i("已挂 hook：${method.declaringClass.name}#${method.name}(${method.parameterTypes.joinToString { it.simpleName }})")
+        LogX.i(
+            "已挂 hook：${method.declaringClass.name}#${method.name}(${method.parameterTypes.joinToString { it.simpleName }})",
+            "Hooked: ${method.declaringClass.name}#${method.name}(${method.parameterTypes.joinToString { it.simpleName }})",
+        )
         true
     }.getOrElse { throwable ->
         LogX.e("挂 hook 失败：$method", throwable)
@@ -219,11 +237,14 @@ class MainHook : XposedModule() {
         return runCatching {
             info.signatures = arrayOf(Signature(bytes))
             if (loggedPackages.add(packageName)) {
-                LogX.i("已伪造签名：$packageName（进程 ${HookEnv.currentProcessName}）")
+                LogX.i(
+                    "已伪造签名：$packageName（进程 ${HookEnv.currentProcessName}）",
+                    "Forged signature: $packageName (process ${HookEnv.currentProcessName})",
+                )
             }
             info
         }.getOrElse { throwable ->
-            LogX.e("替换 $packageName 的签名失败", throwable)
+            LogX.e("替换 $packageName 的签名失败", "Failed to replace signature for $packageName", throwable)
             result
         }
     }
@@ -246,7 +267,10 @@ class MainHook : XposedModule() {
                 prefs.registerOnSharedPreferenceChangeListener(prefsListener)
                 true
             }.getOrElse {
-                LogX.w("注册远程 preferences 监听失败：${it.message}")
+                LogX.w(
+                    "注册远程 preferences 监听失败：${it.message}",
+                    "Failed to register remote preferences listener: ${it.message}",
+                )
                 false
             }
         }

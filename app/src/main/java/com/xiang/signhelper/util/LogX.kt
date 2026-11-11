@@ -22,9 +22,19 @@ object LogX {
 
     fun i(message: String) = emit(Log.INFO, message)
 
+    /** 中英双语日志；按设置选择输出语言。 */
+    fun i(zh: String, en: String) = emit(Log.INFO, pick(zh, en))
+
     fun w(message: String) = emit(Log.WARN, message)
 
+    fun w(zh: String, en: String) = emit(Log.WARN, pick(zh, en))
+
     fun e(message: String, t: Throwable? = null) = emit(Log.ERROR, message, t)
+
+    fun e(zh: String, en: String, t: Throwable? = null) = emit(Log.ERROR, pick(zh, en), t)
+
+    private fun pick(zh: String, en: String): String =
+        if (Config.logLanguage() == "en") en else zh
 
     private fun emit(priority: Int, message: String, tr: Throwable? = null) {
         if (Config.logLevel() == 0) return
