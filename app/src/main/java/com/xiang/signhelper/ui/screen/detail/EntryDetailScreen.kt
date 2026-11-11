@@ -2,12 +2,10 @@ package com.xiang.signhelper.ui.screen.detail
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,10 +25,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiang.signhelper.R
@@ -111,15 +112,27 @@ fun EntryDetailScreen(
     val valid = isHex(forged)
     val scrollBehavior = MiuixScrollBehavior()
 
-    val enterState = remember {
-        MutableTransitionState(!animateEnter).apply { targetState = true }
+    // 与 Miuix NavTransitions.MiuixDefault 相同的动效：临界阻尼 spring（stiffness 146），
+    // 入场 translationX 从屏宽收敛到 0；不是 Android 的 Material slide/fade。
+    val enterProgress = remember { Animatable(if (animateEnter) 1f else 0f) }
+    LaunchedEffect(animateEnter) {
+        if (animateEnter) {
+            enterProgress.animateTo(
+                targetValue = 0f,
+                animationSpec = spring(dampingRatio = 1f, stiffness = 146f),
+            )
+        }
     }
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
-    AnimatedVisibility(
-        visibleState = enterState,
-        enter = slideInHorizontally(animationSpec = tween(320)) { it } +
-            fadeIn(animationSpec = tween(200)),
-        modifier = Modifier.fillMaxSize(),
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                val progress = enterProgress.value
+                translationX = (if (rtl) -1f else 1f) * progress * size.width
+                alpha = 1f - 0.1f * progress
+            },
     ) {
     Scaffold(
         topBar = {
