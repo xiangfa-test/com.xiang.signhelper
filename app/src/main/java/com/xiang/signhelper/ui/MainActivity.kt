@@ -13,6 +13,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
@@ -24,6 +25,7 @@ import com.xiang.signhelper.ui.navigation3.LocalNavigator
 import com.xiang.signhelper.ui.navigation3.Route
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.xiang.signhelper.ui.navigation3.rememberNavigator
@@ -77,6 +79,9 @@ class MainActivity : ComponentActivity() {
             }
 
             val navigator = rememberNavigator(Route.Main)
+            val uiScope = rememberCoroutineScope()
+            // 主页模式返回时：手动隐藏选择页，避免 pop 过程中列表闪现。
+            var hidePicker by remember { mutableStateOf(false) }
 
             // 二级页选中的应用先存这里：选完 pop 回主页，再交给应用目录读签名/入库。
             var pendingInstalledPackage by remember { mutableStateOf<String?>(null) }
@@ -95,13 +100,29 @@ class MainActivity : ComponentActivity() {
                     val d = scope.relativeDepth
                     val width = scope.layoutSize.width.toFloat()
                     val rtl = scope.layoutDirection == LayoutDirection.Rtl
-                    val multiPop = scope.change is NavChange.MultiPop
-                    if (multiPop) {
-                        // 主页模式一次弹掉详情+选择页：选择页全程透明，
-                        // opaqueDepth=0 让下层主页保持渲染，避免黑屏。
+                    // 主页返回时由 hidePicker 强制隐藏；被覆盖层的视觉由上层转场接管，
+                    // 不能依赖 change 分类，所以这里用显式标记。
+                    if (hidePicker) {
                         translationX = 0f
                         alpha = 0f
                     } else if (d <= 0f) {
+                        translationX = ((if (rtl) -1f else 1f) * (-d).coerceIn(0f, 1f) * width)
+                            .roundToInt().toFloat()
+                    } else {
+                        translationX = (if (rtl) 1f else -1f) * d.coerceIn(0f, 1f) * width * 0.25f
+                        alpha = 1f - 0.1f * d.coerceIn(0f, 1f)
+                    }
+                }
+            }
+
+            // 详情层用 opaqueDepth=2：主页模式会同时弹详情+选择页，
+            // 需要保留更下方的真实主页参与渲染，否则选择页透明时会黑屏。
+            val detailTransition = remember {
+                navGraphicsTransition(opaqueDepth = 2f) { scope ->
+                    val d = scope.relativeDepth
+                    val width = scope.layoutSize.width.toFloat()
+                    val rtl = scope.layoutDirection == LayoutDirection.Rtl
+                    if (d <= 0f) {
                         translationX = ((if (rtl) -1f else 1f) * (-d).coerceIn(0f, 1f) * width)
                             .roundToInt().toFloat()
                     } else {
@@ -167,13 +188,19 @@ class MainActivity : ComponentActivity() {
                                     },
                                 )
                             }
-                            entry<Route.EntryDetail>(swipeDismiss = swipeDismiss) { entry ->
+                            entry<Route.EntryDetail>(transition = detailTransition, swipeDismiss = swipeDismiss) { entry ->
                                 EntryDetailScreen(
                                     packageName = entry.packageName,
                                     onBack = {
                                         if (entry.fromPicker && Config.pickTarget() != "list") {
-                                            // 主页模式：详情和选择页一次性弹掉；选择页在 MultiPop 中透明。
+                                            // 主页模式：先强制隐藏选择页，再一次性弹到主页；
+                                            // 转场结束后恢复标记。
+                                            hidePicker = true
                                             navigator.popUntil { it is Route.Main }
+                                            uiScope.launch {
+                                                delay(800)
+                                                hidePicker = false
+                                            }
                                         } else {
                                             navigator.pop()
                                         }

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 窗口底色：Compose 首帧前的空隙用主题色，而不是透明导致的黑色。 -->
+    <color name="window_background">#FFF7F7F7</color>
+</resources>
