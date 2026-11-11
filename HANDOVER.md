@@ -1,6 +1,6 @@
-# SignHelper 交接文档
+# SignHelper 接续开发文档
 
-> 本文件用于项目停止维护后的交接。项目后续不再计划更新，除非接手者继续维护。
+> 本文件用于把项目交接给其他 AI / 新会话继续开发，减少重新摸清上下文的时间。项目仍会继续维护，不是停止维护公告。
 
 ## 1. 项目概览
 
@@ -124,7 +124,7 @@ CI：`.github/workflows/ci.yml`（`assembleDebug` + `testDebugUnitTest`，需 `g
 - 主页「选择 APK」改为右下角悬浮按钮，升级后提示一次
 - 日志支持中英双语（默认 English）
 
-已知问题（作为“特性”保留）：
+已知问题（当前作为“特性”保留，后续仍可修）：
 
 - 页面切换逻辑仍有瑕疵：
   - 主页模式选择应用后用 `replace` 进详情，**进入详情没有转场动画**
@@ -140,4 +140,13 @@ CI：`.github/workflows/ci.yml`（`assembleDebug` + `testDebugUnitTest`，需 `g
 - 修改 `entries_json` / hook 协议键时要同时检查 `SignStore` 与 `MainHook`
 - 本机 Gradle/Kotlin daemon 偶发 `AccessDeniedException` 临时文件警告，一般可忽略；必要时 `--no-daemon`
 - 设备无线 adb 可能掉线，重连用 `adb mdns services` 找地址
-- 仓库已不再计划更新；接手者继续维护时请更新本文件
+- 项目仍会继续维护；接手者完成结构性改动后请更新本文件
+
+## 9. 新会话接手建议
+
+1. 先读本文件，再看 `app/build.gradle.kts`、`MainActivity.kt`、`MainScreen.kt`、`SignStore.kt`、`MainHook.kt`
+2. 用 `assembleDebug` 确认能构建，再跑 `testDebugUnitTest`
+3. 装 release/debug 时一律 `adb install -r`，不要卸载（debug 与 release 使用同一签名）
+4. 发版前先问用户是否要发、版本号用什么；发布流程见第 6 节
+5. 不要读取或提交 `keystore.properties` / `_keys/` 里的密钥内容
+6. 需要继续修页面切换时，优先考虑把主页/选择页/详情收进同一状态机，而不是继续叠 NavDisplay 路由
