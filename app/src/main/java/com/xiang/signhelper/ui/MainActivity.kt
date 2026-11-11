@@ -23,7 +23,6 @@ import com.xiang.signhelper.util.SignatureUtil
 import com.xiang.signhelper.data.SignStore
 import com.xiang.signhelper.ui.navigation3.LocalNavigator
 import com.xiang.signhelper.ui.navigation3.Route
-import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -36,8 +35,6 @@ import com.xiang.signhelper.ui.theme.AppTheme
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.nav.core.NavDisplay
 import top.yukonga.miuix.kmp.nav.core.NavDisplayEffects
-import top.yukonga.miuix.kmp.nav.runtime.NavChange
-import top.yukonga.miuix.kmp.nav.transition.navGraphicsTransition
 import top.yukonga.miuix.kmp.nav.core.rememberNavSystemCornerRadius
 import top.yukonga.miuix.kmp.nav.transition.NavSwipeDirection
 
@@ -79,9 +76,6 @@ class MainActivity : ComponentActivity() {
             }
 
             val navigator = rememberNavigator(Route.Main)
-            val uiScope = rememberCoroutineScope()
-            // 主页模式返回时：手动隐藏选择页，避免 pop 过程中列表闪现。
-            var hidePicker by remember { mutableStateOf(false) }
 
             // 二级页选中的应用先存这里：选完 pop 回主页，再交给应用目录读签名/入库。
             var pendingInstalledPackage by remember { mutableStateOf<String?>(null) }
@@ -91,45 +85,6 @@ class MainActivity : ComponentActivity() {
                 NavSwipeDirection.RightToLeft
             } else {
                 NavSwipeDirection.LeftToRight
-            }
-
-            // 选择页转场与 MiuixDefault 一致；MultiPop（主页模式：详情+选择页一起弹掉）
-            // 时让选择页彻底透明，避免多段 pop 期间闪一下应用列表。
-            val pickerTransition = remember {
-                navGraphicsTransition(opaqueDepth = 0f) { scope ->
-                    val d = scope.relativeDepth
-                    val width = scope.layoutSize.width.toFloat()
-                    val rtl = scope.layoutDirection == LayoutDirection.Rtl
-                    // 主页返回时由 hidePicker 强制隐藏；被覆盖层的视觉由上层转场接管，
-                    // 不能依赖 change 分类，所以这里用显式标记。
-                    if (hidePicker) {
-                        translationX = 0f
-                        alpha = 0f
-                    } else if (d <= 0f) {
-                        translationX = ((if (rtl) -1f else 1f) * (-d).coerceIn(0f, 1f) * width)
-                            .roundToInt().toFloat()
-                    } else {
-                        translationX = (if (rtl) 1f else -1f) * d.coerceIn(0f, 1f) * width * 0.25f
-                        alpha = 1f - 0.1f * d.coerceIn(0f, 1f)
-                    }
-                }
-            }
-
-            // 详情层用 opaqueDepth=2：主页模式会同时弹详情+选择页，
-            // 需要保留更下方的真实主页参与渲染，否则选择页透明时会黑屏。
-            val detailTransition = remember {
-                navGraphicsTransition(opaqueDepth = 2f) { scope ->
-                    val d = scope.relativeDepth
-                    val width = scope.layoutSize.width.toFloat()
-                    val rtl = scope.layoutDirection == LayoutDirection.Rtl
-                    if (d <= 0f) {
-                        translationX = ((if (rtl) -1f else 1f) * (-d).coerceIn(0f, 1f) * width)
-                            .roundToInt().toFloat()
-                    } else {
-                        translationX = (if (rtl) 1f else -1f) * d.coerceIn(0f, 1f) * width * 0.25f
-                        alpha = 1f - 0.1f * d.coerceIn(0f, 1f)
-                    }
-                }
             }
 
             CompositionLocalProvider(LocalNavigator provides navigator) {
@@ -151,7 +106,7 @@ class MainActivity : ComponentActivity() {
                                     onOpenInstalledPicker = { navigator.push(Route.InstalledPicker) },
                                 )
                             }
-                            entry<Route.InstalledPicker>(transition = pickerTransition, swipeDismiss = swipeDismiss) {
+                            entry<Route.InstalledPicker>(swipeDismiss = swipeDismiss) {
                                 InstalledAppPickerScreen(
                                     onBack = { navigator.pop() },
                                     onPick = { packageName ->
@@ -181,30 +136,22 @@ class MainActivity : ComponentActivity() {
                                                 )
                                             }
                                             pendingInstalledPackage = packageName
-                                            // 始终 push：让 NavDisplay 跑真正的 MiuixDefault 转场，
-                                            // 选择页在下层做视差；主页模式返回时再一并弹出。
-                                            navigator.push(Route.EntryDetail(packageName, fromPicker = true))
+                                            val detail = Route.EntryDetail(packageName, fromPicker = true)
+                                            if (Config.pickTarget() == "list") {
+                                                navigator.push(detail)
+                                            } else {
+                                                // 主页模式：直接替换选择页，返回即回主页；
+                                                // 不做多层 pop，避免闪列表与黑屏。
+                                                navigator.replace(detail)
+                                            }
                                         }
                                     },
                                 )
                             }
-                            entry<Route.EntryDetail>(transition = detailTransition, swipeDismiss = swipeDismiss) { entry ->
+                            entry<Route.EntryDetail>(swipeDismiss = swipeDismiss) { entry ->
                                 EntryDetailScreen(
                                     packageName = entry.packageName,
-                                    onBack = {
-                                        if (entry.fromPicker && Config.pickTarget() != "list") {
-                                            // 主页模式：先强制隐藏选择页，再一次性弹到主页；
-                                            // 转场结束后恢复标记。
-                                            hidePicker = true
-                                            navigator.popUntil { it is Route.Main }
-                                            uiScope.launch {
-                                                delay(800)
-                                                hidePicker = false
-                                            }
-                                        } else {
-                                            navigator.pop()
-                                        }
-                                    },
+                                    onBack = { navigator.pop() },
                                 )
                             }
                         }
