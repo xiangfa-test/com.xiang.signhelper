@@ -255,6 +255,13 @@ object Config {
         set(Key.PICK_TARGET, target)
     }
 
+    /** 是否已经提示过「选择 APK 已移到悬浮按钮」。 */
+    fun isFabHintShown(): Boolean = getString(Key.FAB_HINT_SHOWN) == "1"
+
+    fun setFabHintShown(shown: Boolean) {
+        set(Key.FAB_HINT_SHOWN, if (shown) "1" else "0")
+    }
+
     /** 0=关闭，1=一般（启动/hook/签名修改），2=详细。默认一般。 */
     fun logLevel(): Int = getString(Key.LOG_LEVEL)?.toIntOrNull() ?: 1
 
@@ -301,6 +308,9 @@ object Config {
 
         /** 应用详细页返回目标 home/list；默认 list。 */
         const val PICK_TARGET = "pick_target"
+
+        /** 悬浮按钮提示是否已展示（"1" / "0"）。 */
+        const val FAB_HINT_SHOWN = "fab_hint_shown"
 
         /** 日志级别 0/1/2；默认 1。 */
         const val LOG_LEVEL = "log_level"

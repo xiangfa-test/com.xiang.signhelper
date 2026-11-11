@@ -133,4 +133,5 @@
     <string name="catalog_known_bugs_title">Note</string>
     <string name="catalog_known_bugs_dialog">Some page transitions are still buggy and will be fixed in a later build.</string>
     <string name="common_got_it">Got it</string>
+    <string name="catalog_fab_hint">"Select APK" has moved to the floating + button at the bottom right</string>
 </resources>

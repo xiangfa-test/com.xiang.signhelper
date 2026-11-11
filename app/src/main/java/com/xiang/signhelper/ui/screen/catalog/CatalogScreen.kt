@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -64,6 +65,7 @@ import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Add
 import top.yukonga.miuix.kmp.icon.extended.MoreCircle
 import top.yukonga.miuix.kmp.overlay.OverlayListPopup
 import top.yukonga.miuix.kmp.preference.ArrowPreference
@@ -143,6 +145,10 @@ fun CatalogScreen(
     // 对话框状态。用「目标条目」而不是布尔值：对话框标题/初值直接从目标上取。
     var deleting by remember { mutableStateOf<SignEntry?>(null) }
     var showBugDialog by remember { mutableStateOf(false) }
+    // 升级到本版本后提示一次：选择 APK 已移到悬浮按钮。
+    var showFabHint by remember {
+        mutableStateOf(!Config.isFabHintShown() && SignStore.entries.isNotEmpty())
+    }
     var showClearDialog by remember { mutableStateOf(false) }
     var pickError by remember { mutableStateOf<String?>(null) }
     var reading by remember { mutableStateOf(false) }
@@ -247,6 +253,7 @@ fun CatalogScreen(
         }
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     PageScaffold(
         titleRes = R.string.page_home,
         bottomPadding = bottomPadding,
@@ -342,20 +349,6 @@ fun CatalogScreen(
                         summary = stringResource(R.string.catalog_pick_installed_summary),
                         enabled = !reading,
                         onClick = onOpenInstalledPicker,
-                    )
-                    ArrowPreference(
-                        title = stringResource(R.string.catalog_pick),
-                        summary = stringResource(
-                            if (reading) R.string.catalog_pick_reading else R.string.catalog_pick_summary,
-                        ),
-                        enabled = !reading,
-                        onClick = {
-                            runCatching {
-                                picker.launch(arrayOf(APK_MIME_TYPE))
-                            }.onFailure {
-                                pickError = noPickerText
-                            }
-                        },
                     )
                     ArrowPreference(
                         title = stringResource(R.string.catalog_clear),
@@ -464,8 +457,26 @@ fun CatalogScreen(
             title = stringResource(R.string.catalog_known_bugs_title),
             summary = stringResource(R.string.catalog_known_bugs_dialog),
             confirmText = stringResource(R.string.common_got_it),
+            showCancel = false,
             onConfirm = { showBugDialog = false },
             onDismiss = { showBugDialog = false },
+        )
+
+        // 选择 APK 已移到悬浮按钮，首次升级提示一次
+        MessageDialog(
+            show = showFabHint,
+            title = stringResource(R.string.catalog_known_bugs_title),
+            summary = stringResource(R.string.catalog_fab_hint),
+            confirmText = stringResource(R.string.common_got_it),
+            showCancel = false,
+            onConfirm = {
+                Config.setFabHintShown(true)
+                showFabHint = false
+            },
+            onDismiss = {
+                Config.setFabHintShown(true)
+                showFabHint = false
+            },
         )
 
         // 备份/恢复结果
@@ -475,6 +486,32 @@ fun CatalogScreen(
             summary = backupMessage,
             onDismiss = { backupMessage = null },
         )
+    }
+
+    // 悬浮按钮：替代原来的「选择 APK」入口
+    Box(
+        modifier = Modifier
+            .align(Alignment.BottomEnd)
+            .padding(end = 24.dp, bottom = bottomPadding + 16.dp)
+            .size(56.dp)
+            .clip(CircleShape)
+            .background(MiuixTheme.colorScheme.primary)
+            .clickable {
+                runCatching {
+                    picker.launch(arrayOf(APK_MIME_TYPE))
+                }.onFailure {
+                    pickError = noPickerText
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = MiuixIcons.Add,
+            contentDescription = stringResource(R.string.catalog_pick),
+            tint = MiuixTheme.colorScheme.onPrimary,
+            modifier = Modifier.size(28.dp),
+        )
+    }
     }
 }
 

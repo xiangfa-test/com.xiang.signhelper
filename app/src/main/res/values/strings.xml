@@ -139,4 +139,5 @@
     <string name="catalog_known_bugs_title">提示</string>
     <string name="catalog_known_bugs_dialog">当前版本存在部分页面切换逻辑问题，等待后续修复</string>
     <string name="common_got_it">知道了</string>
+    <string name="catalog_fab_hint">「选择 APK」已移到右下角悬浮按钮，点击 + 即可选择 APK</string>
 </resources>
