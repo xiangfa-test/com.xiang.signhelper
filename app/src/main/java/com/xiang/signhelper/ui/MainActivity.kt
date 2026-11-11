@@ -91,20 +91,22 @@ class MainActivity : ComponentActivity() {
             // 选择页转场与 MiuixDefault 一致；MultiPop（主页模式：详情+选择页一起弹掉）
             // 时让选择页彻底透明，避免多段 pop 期间闪一下应用列表。
             val pickerTransition = remember {
-                navGraphicsTransition { scope ->
+                navGraphicsTransition(opaqueDepth = 0f) { scope ->
                     val d = scope.relativeDepth
                     val width = scope.layoutSize.width.toFloat()
                     val rtl = scope.layoutDirection == LayoutDirection.Rtl
-                    if (d <= 0f) {
+                    val multiPop = scope.change is NavChange.MultiPop
+                    if (multiPop) {
+                        // 主页模式一次弹掉详情+选择页：选择页全程透明，
+                        // opaqueDepth=0 让下层主页保持渲染，避免黑屏。
+                        translationX = 0f
+                        alpha = 0f
+                    } else if (d <= 0f) {
                         translationX = ((if (rtl) -1f else 1f) * (-d).coerceIn(0f, 1f) * width)
                             .roundToInt().toFloat()
                     } else {
                         translationX = (if (rtl) 1f else -1f) * d.coerceIn(0f, 1f) * width * 0.25f
-                        alpha = if (scope.change is NavChange.MultiPop) {
-                            0f
-                        } else {
-                            1f - 0.1f * d.coerceIn(0f, 1f)
-                        }
+                        alpha = 1f - 0.1f * d.coerceIn(0f, 1f)
                     }
                 }
             }
