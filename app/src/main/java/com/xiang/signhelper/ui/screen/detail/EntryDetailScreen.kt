@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +36,7 @@ import com.xiang.signhelper.ui.component.SignatureInfoDialog
 import com.xiang.signhelper.ui.component.SignaturePreview
 import com.xiang.signhelper.ui.component.rememberAppIcon
 import com.xiang.signhelper.util.SignatureUtil
+import kotlinx.coroutines.delay
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -48,6 +51,7 @@ import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.overScrollVertical
 
 private fun isHex(text: String): Boolean =
     text.isNotEmpty() && text.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }
@@ -75,6 +79,28 @@ fun EntryDetailScreen(
     val prettyOriginal = remember(original) { SignatureUtil.prettifyHex(original) }
     BackHandler(onBack = onBack)
 
+    // 输入即更新本地状态，写盘做防抖；离开页面时再强制落一次，避免丢最后一次编辑。
+    val latestForged by rememberUpdatedState(forged)
+    LaunchedEffect(forged) {
+        if (forged == current.forgedSignature) return@LaunchedEffect
+        delay(400)
+        if (forged.isBlank()) {
+            SignStore.setForged(current.packageName, "")
+        } else if (isHex(forged)) {
+            SignStore.setForged(current.packageName, forged)
+            SignStore.setEnabled(current.packageName, true)
+        }
+    }
+    DisposableEffect(current.packageName) {
+        onDispose {
+            val value = latestForged
+            if (value.isNotBlank() && isHex(value) && value != current.forgedSignature) {
+                SignStore.setForged(current.packageName, value)
+                SignStore.setEnabled(current.packageName, true)
+            }
+        }
+    }
+
     val valid = isHex(forged)
     val scrollBehavior = MiuixScrollBehavior()
 
@@ -98,7 +124,8 @@ fun EntryDetailScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding)
+                .overScrollVertical(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(
                 top = 6.dp,
                 bottom = 32.dp,
@@ -160,15 +187,7 @@ fun EntryDetailScreen(
                     Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                         TextField(
                             value = forged,
-                            onValueChange = { value ->
-                                forged = value
-                                if (value.isBlank()) {
-                                    SignStore.setForged(current.packageName, "")
-                                } else if (isHex(value)) {
-                                    SignStore.setForged(current.packageName, value)
-                                    SignStore.setEnabled(current.packageName, true)
-                                }
-                            },
+                            onValueChange = { forged = it },
                             label = stringResource(R.string.detail_forged_hint),
                             singleLine = false,
                             minLines = 1,
