@@ -55,6 +55,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+
         // 条目仓库绑定 Context 并读一次磁盘；界面第一次组合就能拿到数据。
         runCatching { SignStore.init(applicationContext) }
 
@@ -135,10 +136,11 @@ class MainActivity : ComponentActivity() {
                                             pendingInstalledPackage = packageName
                                             val detail = Route.EntryDetail(packageName, fromPicker = true)
                                             if (Config.pickTarget() == "list") {
-                                                // 返回列表模式：保留选择页，详情压在它上面
+                                                // 返回列表模式：保留选择页，详情压在它上面（nav 自带动画）
                                                 navigator.push(detail)
                                             } else {
-                                                // 返回主页模式：直接用详情替换选择页，栈里不留下列表
+                                                // 返回主页模式：替换选择页，栈里不留列表；
+                                                // replace 深度不变不会触发 nav 动画，详情页自己做入场动画。
                                                 navigator.replace(detail)
                                             }
                                         }
@@ -148,6 +150,7 @@ class MainActivity : ComponentActivity() {
                             entry<Route.EntryDetail>(swipeDismiss = swipeDismiss) { entry ->
                                 EntryDetailScreen(
                                     packageName = entry.packageName,
+                                    animateEnter = entry.fromPicker && Config.pickTarget() != "list",
                                     onBack = {
                                         // 返回主页模式下选择页已被详情替换，这里 pop 即回主页；
                                         // 返回列表模式下选择页仍在栈中，pop 即回列表。

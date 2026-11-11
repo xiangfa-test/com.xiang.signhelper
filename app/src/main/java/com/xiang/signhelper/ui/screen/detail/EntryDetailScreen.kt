@@ -2,6 +2,11 @@ package com.xiang.signhelper.ui.screen.detail
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -65,6 +70,8 @@ private fun isHex(text: String): Boolean =
 @Composable
 fun EntryDetailScreen(
     packageName: String,
+    /** 由选择页 replace 进来时 nav 深度不变，需要自己做一次滑入动画。 */
+    animateEnter: Boolean = false,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -104,6 +111,16 @@ fun EntryDetailScreen(
     val valid = isHex(forged)
     val scrollBehavior = MiuixScrollBehavior()
 
+    val enterState = remember {
+        MutableTransitionState(!animateEnter).apply { targetState = true }
+    }
+
+    AnimatedVisibility(
+        visibleState = enterState,
+        enter = slideInHorizontally(animationSpec = tween(320)) { it } +
+            fadeIn(animationSpec = tween(200)),
+        modifier = Modifier.fillMaxSize(),
+    ) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -207,6 +224,7 @@ fun EntryDetailScreen(
             }
             item { Spacer(modifier = Modifier.height(24.dp)) }
         }
+    }
     }
 
     if (showInfo) {
