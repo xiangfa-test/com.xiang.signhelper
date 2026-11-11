@@ -114,8 +114,18 @@ fun InstalledAppPickerScreen(
         val cached = apps
         val result = withContext(Dispatchers.IO) { SignatureUtil.listInstalledApps(context) }
         restricted = result.restricted
-        // 数量没变就继续用缓存（内容不闪、不重排）；变了才换新列表。
-        if (cached == null || cached.size != result.apps.size) {
+        // 数量一致也要比较名称/系统标记/更新时间：这些字段变了同样要刷新。
+        val cachedById = cached?.associateBy { it.packageName }
+        val changed = cached == null ||
+            cached.size != result.apps.size ||
+            result.apps.any { new ->
+                val old = cachedById?.get(new.packageName)
+                old == null ||
+                    old.label != new.label ||
+                    old.isSystem != new.isSystem ||
+                    old.lastUpdateTime != new.lastUpdateTime
+            }
+        if (changed) {
             apps = result.apps
             withContext(Dispatchers.IO) { SignatureUtil.saveInstalledAppsCache(context, result.apps) }
         }

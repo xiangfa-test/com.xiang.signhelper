@@ -89,7 +89,10 @@ object SignatureUtil {
             // 只有自己 = 被系统限制（正常设备上随便也有几十个包）
             restricted = packages.size <= 1
             val names = if (restricted) {
-                LogX.w("读取已安装应用被系统限制，改用 intent 反查包名")
+                LogX.w(
+                    "读取已安装应用被系统限制，改用 intent 反查包名",
+                    "Installed-app listing restricted by system; falling back to intent lookup",
+                )
                 queryPackageNames(pm)
             } else {
                 packages.map { it.packageName }
@@ -116,7 +119,7 @@ object SignatureUtil {
                 }
                 .distinctBy { it.packageName }
                 .toList()
-        }.onFailure { LogX.e("读取已安装应用列表失败", it) }
+        }.onFailure { LogX.e("读取已安装应用列表失败", "Failed to list installed apps", it) }
             .getOrDefault(emptyList())
 
         LogX.i(
@@ -149,7 +152,7 @@ object SignatureUtil {
         out
     }.onFailure { LogX.w("读取已安装应用缓存失败：${it.message}") }.getOrNull()
 
-    /** 缓存已安装应用列表（下次打开先展示缓存，再按数量变化增量刷新）。 */
+    /** 缓存已安装应用列表（下次打开先展示缓存，再按内容变化增量刷新）。 */
     fun saveInstalledAppsCache(context: Context, apps: List<InstalledApp>) {
         runCatching {
             val array = JSONArray()
@@ -163,7 +166,20 @@ object SignatureUtil {
                     },
                 )
             }
-            java.io.File(context.filesDir, "installed_apps_cache.json").writeText(array.toString())
+            val target = java.io.File(context.filesDir, "installed_apps_cache.json")
+            val temp = java.io.File(context.filesDir, "installed_apps_cache.json.tmp")
+            temp.writeText(array.toString())
+            // 先写临时文件再原子替换，避免写入中断留下半个 JSON。
+            try {
+                java.nio.file.Files.move(
+                    temp.toPath(),
+                    target.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                    java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                )
+            } catch (_: Exception) {
+                temp.renameTo(target)
+            }
         }.onFailure { LogX.w("写入已安装应用缓存失败：${it.message}") }
     }
 
