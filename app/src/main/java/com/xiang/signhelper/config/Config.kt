@@ -91,13 +91,19 @@ object Config {
                         .onFailure { LogX.w("拿框架远程 preferences 失败：${it.message}") }
                         .getOrNull() ?: return
                     remoteWritable = prefs
-                    LogX.i("已接上框架的可写远程 preferences（group=$GROUP），开始同步本地配置")
+                    LogX.i(
+                        "已接上框架的可写远程 preferences（group=$GROUP），开始同步本地配置",
+                        "Connected to framework writable remote preferences (group=$GROUP); syncing local config",
+                    )
                     pushAllToFramework()
                 }
 
                 override fun onServiceDied(service: XposedService) {
                     remoteWritable = null
-                    LogX.w("框架服务断开，暂停远程写入（本地仍然写）")
+                    LogX.w(
+                "框架服务断开，暂停远程写入（本地仍然写）",
+                "Framework service disconnected; remote writes paused (local writes continue)",
+            )
                 }
             })
         }.onFailure { LogX.e("注册框架服务监听失败", it) }
@@ -121,7 +127,10 @@ object Config {
             }
             // 必须 commit：界面写完后用户会立刻冷启动微信 / QQ，异步落盘可能丢。
             editor.commit()
-            LogX.i("已把本地配置推给框架（${src.all.size} 项）")
+            LogX.i(
+                "已把本地配置推给框架（${src.all.size} 项）",
+                "Pushed local config to framework (${src.all.size} keys)",
+            )
         }.onFailure { LogX.w("推送本地配置失败：${it.message}") }
     }
 
@@ -169,9 +178,11 @@ object Config {
             return false
         }
         var ok = false
-        if (localPrefs != null) ok = writeInto(localPrefs, key, value) || ok
+        // 本地副本用 apply()，避免大 JSON（entries_json）在主线程同步落盘；
+        // 框架镜像必须 commit()，否则被注入进程可能读不到最新配置。
+        if (localPrefs != null) ok = writeInto(localPrefs, key, value, sync = false) || ok
         if (remotePrefs != null) {
-            ok = writeInto(remotePrefs, key, value) || ok
+            ok = writeInto(remotePrefs, key, value, sync = true) || ok
         } else {
             // 本地写成功、但推不到框架 = 注入进程永远读不到 → 功能不会生效。
             LogX.w("[WARN] 框架服务未绑定，$key 只写到了本地：被注入进程读不到")
@@ -180,7 +191,12 @@ object Config {
     }
 
     /** 往一份具体的 preferences 里写一个键；失败只记日志。 */
-    private fun writeInto(target: SharedPreferences, key: String, value: Any?): Boolean {
+    private fun writeInto(
+        target: SharedPreferences,
+        key: String,
+        value: Any?,
+        sync: Boolean,
+    ): Boolean {
         val editor = runCatching { target.edit() }.getOrNull() ?: return false
         when (value) {
             null -> editor.remove(key)
@@ -192,7 +208,14 @@ object Config {
             // 其余类型（集合等）本模块不使用，转成字符串兜底，避免静默丢键。
             else -> editor.putString(key, value.toString())
         }
-        return runCatching { editor.commit() }.getOrElse {
+        return runCatching {
+            if (sync) {
+                editor.commit()
+            } else {
+                editor.apply()
+                true
+            }
+        }.getOrElse {
             LogX.e("Config.set($key) 失败", it)
             false
         }
