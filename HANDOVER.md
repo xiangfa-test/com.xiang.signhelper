@@ -165,6 +165,12 @@ CI：`.github/workflows/ci.yml`（`assembleDebug` + `testDebugUnitTest`，需 `g
   - 返回主页时不再闪列表/黑屏，但整体观感不完美
 - 主页绿色提示文案已改为「页面切换逻辑保留」，点开显示「懒得修了，当作特性保留了」
 
+能力边界（**不是 bug，是架构决定的**，见第 10 节实测）：
+
+- 只覆盖 `PackageManager` 的 Java 调用链（`getPackageInfo*` / `hasSigningCertificate`）；
+- **不覆盖**宿主自己 `open` APK 文件、解析 v2/v3 签名块的校验 —— 那类需要上游 v4.0.x 的
+  native 路径重定向（`libnativehook.so` + `liblsplt.so`）或自写 Zygisk 方案。
+
 后续若要彻底修复，建议把「主页 / 选择页 / 详情」三者收进同一个状态机，用一套 Miuix motion 驱动，而不是继续叠加 NavDisplay 路由。
 
 ## 8. 交接注意事项
@@ -181,14 +187,41 @@ CI：`.github/workflows/ci.yml`（`assembleDebug` + `testDebugUnitTest`，需 `g
 - 设备无线 adb 可能掉线，重连用 `adb mdns services` 找地址
 - 项目仍会继续维护；接手者完成结构性改动后请更新本文件
 
-## 9. 新会话接手建议
+## 9. 设备实验安全规则（强制，生产机）
 
-1. 先读本文件，再看 `app/build.gradle.kts`、`MainActivity.kt`、`MainScreen.kt`、`SignStore.kt`、`MainHook.kt`
-2. 用 `assembleDebug` 确认能构建，再跑 `testDebugUnitTest`
-3. 装 release/debug 时一律 `adb install -r`，不要卸载（debug 与 release 使用同一签名）
-4. 发版前先问用户是否要发、版本号用什么；发布流程见第 6 节
-5. 不要读取或提交 `keystore.properties` / `_keys/` 里的密钥内容
-6. 需要继续修页面切换时，优先考虑把主页/选择页/详情收进同一状态机，而不是继续叠 NavDisplay 路由
+> 背景：2026-11-18 曾在**生产机**上直接整文件覆盖 `signhelper_config.xml` 并重设作用域，
+> 用户原有的哔哩哔哩伪造配置被冲掉（后靠 LSPosed WAL 捞回）。
+
+### 9.1 动手前必须先快照
+
+工作区脚本：`Documents\deepseek-harness\default-workspace\_tools\device-snapshot.ps1`
+
+```powershell
+pwsh -NoProfile -File .\_tools\device-snapshot.ps1 -Serial "<adb 序列号>"
+```
+
+快照内容：模块本地 prefs、LSPosed `modules_config.db(-wal/-shm)`、`module show`、`scope list`，
+落到 `_tools\device-backups\<时间戳>\`。**没有快照就不许执行任何写操作。**
+
+### 9.2 写 prefs 的硬规矩
+
+- **禁止整文件覆盖**。例外只有一种：已确认整份内容就是要写的东西，且已快照。
+- 改单个键时用模块自己的 `Config.set` 语义（删键用 `null`），不要重写 XML。
+- 不要手改 `modules_config.db`：LSPosed daemon 常驻打开，直接改会损坏或被 WAL 覆盖。
+- 推送后必须 `chown <uid>:<uid>` + `chmod 660` + `restorecon`。
+
+### 9.3 实验范围
+
+- 只在**自建探针包**上做（`com.probe.sig` / `com.sigprobe.boundary`），作用域也只给探针。
+- 不要把用户的真实应用（微信 / QQ / B 站 …）加进作用域做实验，也不要给它们的包名写伪造值。
+- 生产机没有备用机：任何"覆盖/重设"类操作先问，能只读就只读。
+
+### 9.4 出事后的恢复路径
+
+1. 先用快照回滚；
+2. 没有快照时，从 LSPosed WAL 里捞旧值（2026-11-18 实战有效）：
+   `_tools\recover\extract.py`（列出本模块全部键）、`extract2.py`（从 db/wal 残页里捞旧 `entries_json`）；
+3. 捞出的 JSON 原样写回 prefs，启动一次模块让它 `pushAllToFramework()`，再核对本地与框架库两处。
 
 ## 10. 真机实测记录（2026-11-18，Android 15 / LSPosed 2.2.1）
 
@@ -223,6 +256,31 @@ getPackageInfo(String, PackageInfoFlags)
 
 `SigningDetails` 命中的构造器形状：`Signature[], int, ArraySet, Signature[]`。
 
+### 边界实验：Java hook 盖不到"自己解包验签"
+
+第二台设备：Xiaomi `2210132C` / Android 16（SDK 36）/ arm64-v8a / KernelSU + LSPosed 2.2.1 (7943)，
+无线调试接入。探针换新包名 `com.sigprobe.boundary`（源码在工作区 `_tools/probe-boundary/`，
+不随仓库提交）。
+
+探针同时用两种方式拿同一个包的签名：
+
+- **类 1 · PackageManager**：`getPackageInfo(GET_SIGNATURES)` / `signingInfo` —— Java hook 能改的；
+- **类 2 · 直接读 APK 文件**：解析 APK Signing Block（v2/v3）里的证书 + 整包 SHA-256 —— 纯 `java.io`。
+
+| 场景 | PM.signatures | PM.signingInfo | FILE.cert（v2 块） | 整包 SHA-256 | 判定 |
+| --- | --- | --- | --- | --- | --- |
+| 自校验（未 hook，基线） | 83ac…(717B) | 83ac… | 83ac… | `1d1ab879…` | SAME |
+| **自校验（已伪造 deadbeef）** | **deadbeef** | **deadbeef** | **83ac…（真）** | `1d1ab879…`（不变） | **DIFF** |
+| **微信（已伪造 deadbeef，286MB APK）** | **deadbeef** | **deadbeef** | **0fe4ff85…（真，751B）** | `9d9b6c51…` | **DIFF** |
+| 对照：未配置的包 | 027b936e…(900B) | 027b936e… | 027b936e… | `9ff264b2…` | SAME |
+
+结论：**Java 层（含 enhanced 的 `signingInfo`/`hasSigningCertificate`）对"宿主自己打开 APK、自己解析签名块"这类校验完全无效**；
+文件字节与 v2 证书一字节没变。对照组证明探针不是恒返回 DIFF。
+
+要覆盖这一类，只有上游 v4.0.x 那条路：native PLT hook `open/openat/stat/...` 做**路径重定向**
+（`libnativehook.so` + `liblsplt.so`，仅 arm64-v8a），或自写 Zygisk/NDK 版本。注意它把读取重定向到
+**另一份 APK 文件**，不是伪造 hex —— 语义与 Java 层完全不同。
+
 ### 配置热更新
 
 - 监听器只置位 `refreshPending`，由**下一次 `getPackageInfo`** 合并刷新。
@@ -240,3 +298,12 @@ getPackageInfo(String, PackageInfoFlags)
   换成真实证书 hex 就不再出现
 - `lspctl` 每条命令结尾都会 `Segmentation fault`，但命令实际已生效（看输出内容判断成败）
 - 探针源码与构建产物：工作区 `_tools/probe-sig/`（不随仓库提交）
+## 11. 新会话接手建议
+
+1. 先读本文件，再看 `app/build.gradle.kts`、`MainActivity.kt`、`MainScreen.kt`、`SignStore.kt`、`MainHook.kt`
+2. 用 `assembleDebug` 确认能构建，再跑 `testDebugUnitTest`
+3. 装 release/debug 时一律 `adb install -r`，不要卸载（debug 与 release 使用同一签名）
+4. 发版前先问用户是否要发、版本号用什么；发布流程见第 6 节
+5. 不要读取或提交 `keystore.properties` / `_keys/` 里的密钥内容
+6. 需要继续修页面切换时，优先考虑把主页/选择页/详情收进同一状态机，而不是继续叠 NavDisplay 路由
+
