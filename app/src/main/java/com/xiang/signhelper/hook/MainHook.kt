@@ -1,19 +1,14 @@
 package com.xiang.signhelper.hook
 
 import android.content.SharedPreferences
-import android.content.pm.PackageInfo
-import android.content.pm.Signature
 import android.os.SystemClock
 import com.xiang.signhelper.config.Config
 import com.xiang.signhelper.util.HookEnv
 import com.xiang.signhelper.util.LogX
-import com.xiang.signhelper.util.SignatureUtil
-import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.ModuleLoadedParam
 import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
-import java.lang.reflect.Method
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -23,50 +18,51 @@ import java.util.concurrent.atomic.AtomicBoolean
  * 由 `META-INF/xposed/java_init.list` 注册；框架实例化这个类并注入框架接口后
  * 才开始生命周期回调。
  *
- * ## 复刻的行为（原版 `cn.xihan.sign` 2.0.3）
+ * ## 职责只剩三件
  *
- * 原版用 YukiHookAPI 在作用域应用里挂
- * `android.app.ApplicationPackageManager#getPackageInfo(String, int)` 的**后置**
- * hook：拿到返回的 [PackageInfo]，如果它的 `packageName` 在"已伪造"集合里，
- * 就把 `PackageInfo#signatures` 换成 `arrayOf(Signature(伪造签名))`。
+ * 1. 生命周期回调里**一次**装好 hook；
+ * 2. 从框架的远程 preferences 读出「哪些包要伪造、伪造成什么」；
+ * 3. 按用户选的**拦截模式**决定交给哪套装法（[SignatureHookInstaller]）。
  *
- * 原版逻辑（反编译确认）：
+ * 真正的改写逻辑在 [SignatureForge]，装法在 [SignatureHookInstaller] —— 本类
+ * 不碰反射细节，方便单独回归。
  *
- * ```java
- * for (String str : forgedPackageNames) {
- *     String hex = prefs.getString(str, "");          // 该包的伪造签名
- *     if (packageInfo.packageName.equals(str) && hex.length() > 0) {
- *         packageInfo.signatures = new Signature[]{ new Signature(hex) };
- *     }
- * }
- * ```
+ * ## 两套拦截模式并存
  *
- * 本实现一一对应，只是配置来源换成 libxposed 的远程 preferences：
- * `forged_packages`（`\n` 分隔的包名）+ `sig:<包名>`（伪造签名 hex）。
+ * | 模式 | 覆盖面 | 与 0.2.x 的关系 |
+ * | --- | --- | --- |
+ * | **原始**（`legacy`） | `getPackageInfo` 两个重载 + 只改 `signatures` | 逐条等价 |
+ * | **增强**（`enhanced`，默认） | 语义扫描 `getPackageInfo` / `getPackageInfoAsUser` / `VersionedPackage` 重载 + `signatures` 与 `signingInfo` 同步伪造 + `hasSigningCertificate` | 超集 |
  *
- * ## 只挂两个重载
+ * 模式存在远程 preferences 的 [Config.Key.HOOK_MODE] 里，用户在设置页切换
+ * （「设置 → 行为 → 拦截模式」）。切完需要**强制停止被 hook 的应用**再打开 ——
+ * hook 是进程启动时装上的，改模式不影响已经在跑的进程。
  *
- *  - `getPackageInfo(String, int)` —— 从 API 1 到现在都有，微信 / QQ 用的就是它；
- *  - `getPackageInfo(String, PackageManager.PackageInfoFlags)` —— API 33+ 的新重载。
+ * ## 配置：本地契约不动
  *
- * 两个都在 `ApplicationPackageManager` 里实现（`android.app.ApplicationPackageManager`
- * 是**隐藏类**，公开 SDK 的 android.jar 里没有，所以只能用 `Class.forName` 反查），
- * 找不到就跳过：宿主用哪个我们就覆盖哪个。
+ * `forged_packages`（`\n` 分隔的包名）+ `sig:<包名>`（伪造签名）依旧是主协议，
+ * 由 `SignStore` 写、本类读。另外**只读地**兼容上游 SignHook 的键
+ * （`fakeSignature$$<包名>` / `fakeSignatureEnabled$$<包名>`），用于迁移或从
+ * 上游配置导入；同包名时本地键优先。写协议不跟着改，老配置零迁移。
  *
  * ## 异常一律 PROTECTIVE
  *
  * hook 内部抛异常不能带走宿主 —— 尤其微信 / QQ 的启动路径上任何崩溃都是灾难。
- * 除了框架层的 [XposedInterface.ExceptionMode.PROTECTIVE]，本类里所有可能失败
- * 的地方也都自行 `runCatching` 兜底了。
+ * 除了框架层的 [io.github.libxposed.api.XposedInterface.ExceptionMode.PROTECTIVE]，
+ * 所有可能失败的地方也都自行 `runCatching` 兜底了。
  */
 class MainHook : XposedModule() {
 
     /** 一个进程只装一次 hook（onPackageLoaded / onPackageReady 都可能先到）。 */
     private val installed = AtomicBoolean(false)
 
-    /** 伪造表缓存：包名 -> 伪造签名 hex。空 = 当前没有任何伪造项。 */
+    /** 伪造表缓存：包名 -> 伪造签名文本（可多行）。空 = 当前没有任何伪造项。 */
     @Volatile
     private var forgedSignatures: Map<String, String> = emptyMap()
+
+    /** 当前拦截模式；默认增强，用户可在设置里切回原始。 */
+    @Volatile
+    private var mode: SignatureHookInstaller.Mode = SignatureHookInstaller.Mode.ENHANCED
 
     /** 已经打过"命中"日志的包名，避免宿主每次 `getPackageInfo` 都刷一条。 */
     private val loggedPackages: MutableSet<String> = ConcurrentHashMap.newKeySet()
@@ -119,8 +115,6 @@ class MainHook : XposedModule() {
      * 哔哩哔哩、QQ 音乐或任何应用加进作用域——只要宿主应用经由 `PackageManager`
      * 读取了列表里某个包的签名，本模块就替换它。
      *
-     * 这样"让 A 应用读取 B 应用的签名时拿到伪造值"就与具体应用名解耦了。
-     *
      * 注意：**不能**在这里加载宿主自己的类（应用自己的类在 `onPackageReady`
      * 之后才可用），只碰框架类 `ApplicationPackageManager`，所以没有初始化顺序问题。
      */
@@ -128,125 +122,51 @@ class MainHook : XposedModule() {
         if (!installed.compareAndSet(false, true)) return
 
         LogX.i(
-            "命中被注入包：$packageName（进程 ${HookEnv.currentProcessName}）",
-            "Hooked package: $packageName (process ${HookEnv.currentProcessName})",
+            "[启动] 1/3 命中被注入包：$packageName（进程 ${HookEnv.currentProcessName}）",
+            "[boot] 1/3 hooked package: $packageName (process ${HookEnv.currentProcessName})",
         )
-        // 读伪造表 + 顺手挂上变更监听（远程 prefs 若此刻还不可用，会在下次刷新时补挂）
+        // 先读配置（顺带确定模式 + 挂上变更监听），再装 hook。
         refreshForgedSignatures()
-        installPackageInfoHooks(classLoader)
-    }
+        LogX.i(
+            "[启动] 2/3 配置就绪：${forgedSignatures.size} 条伪造项，模式=${mode.value}",
+            "[boot] 2/3 config ready: ${forgedSignatures.size} forged entries, mode=${mode.value}",
+        )
 
-    /**
-     * 在 [PACKAGE_MANAGER_IMPL] 上挂 `getPackageInfo` 的后置 hook。
-     *
-     * 该类是 `@hide` 的（只存在于 framework，不在公开 android.jar 里），所以用
-     * `Class.forName` + 沿继承链找方法，而不是直接引用类型。
-     */
-    private fun installPackageInfoHooks(classLoader: ClassLoader) {
-        val clazz = runCatching { Class.forName(PACKAGE_MANAGER_IMPL, false, classLoader) }.getOrNull()
-        if (clazz == null) {
-            LogX.e(
-                "找不到 $PACKAGE_MANAGER_IMPL，无法挂 getPackageInfo hook",
-                "Cannot find $PACKAGE_MANAGER_IMPL; getPackageInfo hooks not installed",
-            )
-            return
-        }
-
-        var count = 0
-        val intClass = Int::class.javaPrimitiveType
-        if (intClass != null) {
-            findMethod(clazz, GET_PACKAGE_INFO, String::class.java, intClass)?.let { method ->
-                if (hookAfterPackageInfo(method)) count++
-            }
-        }
-
-        // API 33+ 的 PackageInfoFlags 重载：老系统上没有这个类，存在才挂。
-        val flagsClass = runCatching {
-            Class.forName("android.content.pm.PackageManager\$PackageInfoFlags", false, classLoader)
-        }.getOrNull()
-        if (flagsClass != null) {
-            findMethod(clazz, GET_PACKAGE_INFO, String::class.java, flagsClass)?.let { method ->
-                if (hookAfterPackageInfo(method)) count++
-            }
-        }
+        val count = SignatureHookInstaller(
+            module = this,
+            lookup = ::lookupForged,
+            mode = mode,
+        ).install(classLoader)
 
         if (count == 0) {
             LogX.e(
-                "getPackageInfo 一个重载都没挂上（系统版本 / ROM 差异？）",
-                "No getPackageInfo overload was hooked (OS/ROM difference?)",
+                "[启动] 3/3 getPackageInfo 一个重载都没挂上（系统版本 / ROM 差异？）",
+                "[boot] 3/3 no getPackageInfo overload was hooked (OS/ROM difference?)",
             )
         } else {
             LogX.i(
-            "getPackageInfo hook 安装完成：$count 个重载",
-            "getPackageInfo hooks installed: $count overloads",
-        )
+                "[启动] 3/3 hook 安装完成：$count 个目标，模式=${mode.value}",
+                "[boot] 3/3 hooks installed: $count targets, mode=${mode.value}",
+            )
         }
     }
-
-    /** 给一个 `getPackageInfo` 重载挂后置 hook；成功返回 `true`。 */
-    private fun hookAfterPackageInfo(method: Method): Boolean = runCatching {
-        val flagName = method.parameterTypes.lastOrNull()?.simpleName ?: "unknown"
-        hook(method)
-            .setId("signhelper-getPackageInfo-$flagName")
-            // PROTECTIVE：hook 自身抛异常时只记录日志并放行原调用，绝不带走宿主。
-            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
-            .intercept(object : XposedInterface.Hooker {
-                override fun intercept(chain: XposedInterface.Chain): Any? {
-                    val result = chain.proceed()
-                    return forgeIfNeeded(result)
-                }
-            })
-        LogX.i(
-            "已挂 hook：${method.declaringClass.name}#${method.name}(${method.parameterTypes.joinToString { it.simpleName }})",
-            "Hooked: ${method.declaringClass.name}#${method.name}(${method.parameterTypes.joinToString { it.simpleName }})",
-        )
-        true
-    }.getOrElse { throwable ->
-        LogX.e("挂 hook 失败：$method", throwable)
-        false
-    }
-
-    // ------------------------------------------------------------------ 伪造
 
     /**
-     * 后置处理：返回的 [PackageInfo] 命中伪造表就替换 `signatures`。
+     * 伪造表查询（hook 热路径）。
      *
-     * 返回原值 / 新值都走同一条路径 —— 就地改 `signatures` 字段并返回同一个对象，
-     * 和原版行为一致（调用方拿到的就是被改过的那份）。
-     *
-     * 注意 `PackageInfo#signatures` 在 API 33 被标注 deprecated（引导用 `signingInfo`），
-     * 但它的字段仍然存在且会被 `GET_SIGNATURES` 填充 —— 微信 / QQ 的老代码路径读的
-     * 就是它，所以这里必须照旧用字段赋值。
+     * 配置在进程启动后才被改的情况（用户改完没重启宿主）不会立刻生效，但这里做了
+     * 低频重试：只要伪造表还是空的，最多每 [REFRESH_INTERVAL_MS] 再读一次。
      */
-    @Suppress("DEPRECATION")
-    private fun forgeIfNeeded(result: Any?): Any? {
-        val info = result as? PackageInfo ?: return result
-        val packageName = info.packageName.orEmpty()
-        if (packageName.isEmpty()) return result
-
-        if (forgedSignatures.isEmpty()) {
-            // 首次读配置可能失败（框架还没把远程 prefs 备好），这里做一次低频重试。
-            maybeRefreshForgedSignatures()
+    private fun lookupForged(packageName: String): String? {
+        if (forgedSignatures.isEmpty()) maybeRefreshForgedSignatures()
+        val hex = forgedSignatures[packageName] ?: return null
+        if (loggedPackages.add(packageName)) {
+            LogX.i(
+                "已伪造签名：$packageName（进程 ${HookEnv.currentProcessName}）",
+                "Forged signature: $packageName (process ${HookEnv.currentProcessName})",
+            )
         }
-        val hex = forgedSignatures[packageName] ?: return result
-        val bytes = SignatureUtil.hexToBytes(hex) ?: run {
-            warnOnce("hex:$packageName", "伪造签名不是合法 hex，已跳过：$packageName = $hex")
-            return result
-        }
-
-        return runCatching {
-            info.signatures = arrayOf(Signature(bytes))
-            if (loggedPackages.add(packageName)) {
-                LogX.i(
-                    "已伪造签名：$packageName（进程 ${HookEnv.currentProcessName}）",
-                    "Forged signature: $packageName (process ${HookEnv.currentProcessName})",
-                )
-            }
-            info
-        }.getOrElse { throwable ->
-            LogX.e("替换 $packageName 的签名失败", "Failed to replace signature for $packageName", throwable)
-            result
-        }
+        return hex
     }
 
     // ------------------------------------------------------------------ 配置
@@ -255,45 +175,142 @@ class MainHook : XposedModule() {
     private fun remotePreferences(): SharedPreferences? =
         runCatching { getRemotePreferences(Config.GROUP) }.getOrNull()
 
-    /** 从远程 preferences 重建伪造表（顺便确保变更监听已挂上）。 */
+    /**
+     * 从远程 preferences 重建伪造表（顺便确保变更监听已挂上、并同步拦截模式）。
+     *
+     * 数据来源有两份，**本地键优先**：
+     * 1. 本模块的主协议：`forged_packages` + `sig:<包名>`；
+     * 2. 上游 SignHook 的键（只读兼容）：`fakeSignature$$<包名>` + `fakeSignatureEnabled$$<包名>`。
+     */
     private fun refreshForgedSignatures() {
+        // [1/4] 拿远程 preferences
         val prefs = remotePreferences() ?: run {
             warnOnce("prefs-unavailable", "远程 preferences 不可用，伪造表保持为空")
             return
         }
         // 远程 prefs 在 onPackageLoaded 阶段偶尔还没备好；哪次拿到就在哪次挂监听。
-        if (!listenerRegistered) {
-            listenerRegistered = runCatching {
-                prefs.registerOnSharedPreferenceChangeListener(prefsListener)
-                true
-            }.getOrElse {
-                LogX.w(
-                    "注册远程 preferences 监听失败：${it.message}",
-                    "Failed to register remote preferences listener: ${it.message}",
-                )
-                false
-            }
-        }
-        val packed = runCatching { prefs.getString(Config.Key.FORGED_PACKAGES, "") }
-            .getOrNull()
-            .orEmpty()
+        registerListenerOnce(prefs)
+
         val rebuilt = HashMap<String, String>()
+
+        // [2/4] 主协议
+        val packed = runCatching { prefs.getString(Config.Key.FORGED_PACKAGES, "") }
+            .getOrElse { throwable ->
+                LogX.w(
+                    "[配置] 2/4 读取 ${Config.Key.FORGED_PACKAGES} 失败：${throwable.message}",
+                    "[config] 2/4 failed to read ${Config.Key.FORGED_PACKAGES}: ${throwable.message}",
+                )
+                null
+            }
+            .orEmpty()
+        var missingSignature = 0
         for (line in packed.split('\n', '\r')) {
             val packageName = line.trim()
             if (packageName.isEmpty()) continue
             val hex = runCatching { prefs.getString(Config.Key.SIG_PREFIX + packageName, "") }
-                .getOrNull()
+                .getOrElse { throwable ->
+                    LogX.w(
+                        "[配置] 读取 sig:$packageName 失败：${throwable.message}",
+                        "[config] failed to read sig:$packageName: ${throwable.message}",
+                    )
+                    null
+                }
                 .orEmpty()
                 .trim()
-            if (hex.isEmpty()) continue
+            if (hex.isEmpty()) {
+                missingSignature++
+                continue
+            }
             rebuilt[packageName] = hex
         }
+        LogX.i(
+            "[配置] 2/4 主协议：清单 ${packed.split('\n', '\r').count { it.isNotBlank() }} 条，" +
+                "有效 ${rebuilt.size} 条，缺签名 $missingSignature 条",
+            "[config] 2/4 primary: ${packed.split('\n', '\r').count { it.isNotBlank() }} listed, " +
+                "${rebuilt.size} usable, $missingSignature missing a signature",
+        )
+
+        // [3/4] 上游键兼容读（同包名以主协议为准）
+        val imported = mergeUpstreamEntries(prefs, rebuilt)
+
+        // [4/4] 拦截模式
+        val rawMode = runCatching { prefs.getString(Config.Key.HOOK_MODE, "") }
+            .getOrElse { throwable ->
+                LogX.w(
+                    "[配置] 4/4 读取 ${Config.Key.HOOK_MODE} 失败，按默认增强模式：${throwable.message}",
+                    "[config] 4/4 failed to read ${Config.Key.HOOK_MODE}; defaulting to enhanced: ${throwable.message}",
+                )
+                null
+            }
+        mode = SignatureHookInstaller.Mode.from(rawMode)
+        LogX.i(
+            "[配置] 4/4 拦截模式=${mode.value}（原始值=${rawMode.orEmpty().ifEmpty { "未设置" }}，默认增强）",
+            "[config] 4/4 mode=${mode.value} (raw=${rawMode.orEmpty().ifEmpty { "unset" }}, default enhanced)",
+        )
+
         val changed = rebuilt != forgedSignatures
         forgedSignatures = rebuilt
         lastRefreshAt = SystemClock.elapsedRealtime()
         if (changed) {
-            LogX.i("伪造表已更新：${rebuilt.keys.joinToString().ifEmpty { "（空）" }}")
+            LogX.i(
+                "伪造表已更新：${rebuilt.keys.joinToString().ifEmpty { "（空）" }}",
+                "Forged table updated: ${rebuilt.keys.joinToString().ifEmpty { "(empty)" }}",
+            )
         }
+        if (imported > 0) {
+            LogX.i(
+                "已从上游键兼容读入 $imported 条（fakeSignature\$\$ 前缀）",
+                "Imported $imported entries from upstream keys (fakeSignature\$\$ prefix)",
+            )
+        }
+    }
+
+    /** 挂一次变更监听。 */
+    private fun registerListenerOnce(prefs: SharedPreferences) {
+        if (listenerRegistered) return
+        listenerRegistered = runCatching {
+            prefs.registerOnSharedPreferenceChangeListener(prefsListener)
+            true
+        }.getOrElse {
+            LogX.w(
+                "注册远程 preferences 监听失败：${it.message}",
+                "Failed to register remote preferences listener: ${it.message}",
+            )
+            false
+        }
+    }
+
+    /**
+     * 把上游 SignHook 的键并进 [target]（只补空缺，不覆盖）。
+     *
+     * 上游的形态是「每个包两个键」：签名 + 布尔开关。这里**只读**，不写回，
+     * 所以不会污染本地协议；同包名时本地键已经在 [target] 里，自然优先。
+     *
+     * @return 实际补进来的条数。
+     */
+    private fun mergeUpstreamEntries(
+        prefs: SharedPreferences,
+        target: MutableMap<String, String>,
+    ): Int {
+        val all = runCatching { prefs.all }.getOrNull() ?: return 0
+        var imported = 0
+        for ((key, value) in all) {
+            if (!key.startsWith(UPSTREAM_SIG_PREFIX)) continue
+            val packageName = key.removePrefix(UPSTREAM_SIG_PREFIX)
+            if (packageName.isEmpty() || packageName in target) continue
+            // 开关缺省按"有签名即可用"处理：手工搬配置时通常不会连布尔一起搬。
+            val enabled = when (val flag = all[UPSTREAM_ENABLED_PREFIX + packageName]) {
+                is Boolean -> flag
+                null -> true
+                else -> flag.toString().toBooleanStrictOrNull() ?: true
+            }
+            if (!enabled) continue
+            val hex = value?.toString()?.trim().orEmpty()
+            if (hex.isEmpty()) continue
+            target[packageName] = hex
+            imported++
+        }
+        return imported
     }
 
     /**
@@ -310,32 +327,19 @@ class MainHook : XposedModule() {
 
     // ------------------------------------------------------------------ 工具
 
-    /** 沿继承链找声明的方法（框架类的方法不一定声明在最外层类上）。 */
-    private fun findMethod(clazz: Class<*>, name: String, vararg parameterTypes: Class<*>): Method? {
-        var current: Class<*>? = clazz
-        while (current != null && current != Any::class.java) {
-            val found = runCatching { current.getDeclaredMethod(name, *parameterTypes) }.getOrNull()
-            if (found != null) {
-                found.isAccessible = true
-                return found
-            }
-            current = current.superclass
-        }
-        return null
-    }
-
     /** 同一类警告只打一次，避免热路径刷屏。 */
     private fun warnOnce(key: String, message: String) {
         if (warnedKeys.add(key)) LogX.w(message)
     }
 
     private companion object {
-        /** `PackageManager` 的实现类（`@hide`，只存在于 framework）。 */
-        const val PACKAGE_MANAGER_IMPL = "android.app.ApplicationPackageManager"
-
-        const val GET_PACKAGE_INFO = "getPackageInfo"
-
         /** 伪造表为空时重新拉取配置的最小间隔。 */
         const val REFRESH_INTERVAL_MS = 5_000L
+
+        /** 上游 SignHook 的签名键前缀（只读兼容）。 */
+        const val UPSTREAM_SIG_PREFIX = "fakeSignature\$\$"
+
+        /** 上游 SignHook 的启用开关键前缀（只读兼容）。 */
+        const val UPSTREAM_ENABLED_PREFIX = "fakeSignatureEnabled\$\$"
     }
 }

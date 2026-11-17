@@ -262,6 +262,25 @@ object Config {
         set(Key.FAB_HINT_SHOWN, if (shown) "1" else "0")
     }
 
+    /**
+     * 拦截模式：`enhanced`（默认，增强）/ `legacy`（原始）。
+     *
+     * 注入进程按同一个键决定装哪套 hook，见
+     * [com.xiang.signhelper.hook.MainHook]。切换后需要强制停止被 hook 的应用，
+     * hook 只在进程启动时装一次。
+     */
+    fun hookMode(): String = getString(Key.HOOK_MODE) ?: HOOK_MODE_ENHANCED
+
+    fun setHookMode(mode: String) {
+        set(Key.HOOK_MODE, mode)
+    }
+
+    /** 增强模式：覆盖面更宽，默认值。 */
+    const val HOOK_MODE_ENHANCED = "enhanced"
+
+    /** 原始模式：与 0.2.x 行为一致，只改 signatures。 */
+    const val HOOK_MODE_LEGACY = "legacy"
+
     /** 0=关闭，1=一般（启动/hook/签名修改），2=详细。默认一般。 */
     fun logLevel(): Int = getString(Key.LOG_LEVEL)?.toIntOrNull() ?: 1
 
@@ -311,6 +330,14 @@ object Config {
 
         /** 悬浮按钮提示是否已展示（"1" / "0"）。 */
         const val FAB_HINT_SHOWN = "fab_hint_shown"
+
+        /**
+         * 拦截模式 `enhanced` / `legacy`；默认 `enhanced`。
+         *
+         * 这也是**注入进程读的键**：改名等于换协议，[com.xiang.signhelper.hook.MainHook]
+         * 会一起坏掉。
+         */
+        const val HOOK_MODE = "hook_mode"
 
         /** 日志级别 0/1/2；默认 1。 */
         const val LOG_LEVEL = "log_level"

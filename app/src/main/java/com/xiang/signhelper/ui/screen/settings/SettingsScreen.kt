@@ -33,6 +33,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     var pickTarget by remember { mutableStateOf(Config.pickTarget()) }
+    var hookMode by remember { mutableStateOf(Config.hookMode()) }
     var logLevel by remember { mutableStateOf(Config.logLevel()) }
     var logLang by remember { mutableStateOf(Config.logLanguage()) }
     var appLang by remember { mutableStateOf(Config.appLanguage()) }
@@ -66,6 +67,23 @@ fun SettingsScreen(
             item { SmallTitle(text = stringResource(R.string.settings_behavior)) }
             item {
                 Card(modifier = Modifier.cardPadding()) {
+                    OverlayDropdownPreference(
+                        title = stringResource(R.string.settings_hook_mode),
+                        summary = stringResource(R.string.settings_hook_mode_summary),
+                        items = listOf(
+                            stringResource(R.string.settings_hook_mode_enhanced),
+                            stringResource(R.string.settings_hook_mode_legacy),
+                        ),
+                        selectedIndex = if (hookMode == Config.HOOK_MODE_LEGACY) 1 else 0,
+                        onSelectedIndexChange = { index ->
+                            hookMode = if (index == 1) {
+                                Config.HOOK_MODE_LEGACY
+                            } else {
+                                Config.HOOK_MODE_ENHANCED
+                            }
+                            Config.setHookMode(hookMode)
+                        },
+                    )
                     OverlayDropdownPreference(
                         title = stringResource(R.string.settings_pick_target),
                         summary = stringResource(R.string.settings_pick_detail_summary),

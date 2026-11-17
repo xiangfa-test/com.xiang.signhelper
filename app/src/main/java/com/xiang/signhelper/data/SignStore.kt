@@ -3,6 +3,7 @@ package com.xiang.signhelper.data
 import android.content.Context
 import androidx.compose.runtime.mutableStateOf
 import com.xiang.signhelper.config.Config
+import com.xiang.signhelper.util.FakeSignatureCodec
 import com.xiang.signhelper.util.LogX
 import org.json.JSONArray
 import org.json.JSONObject
@@ -285,9 +286,17 @@ object SignStore {
         )
     }
 
-    /** hex 统一成小写、去掉空白与常见分隔符（用户从日志/文件管理器里粘过来的会有）。 */
-    private fun normalizeHex(hex: String): String =
-        hex.filterNot { it.isWhitespace() || it == ':' || it == '-' }.lowercase()
+    /**
+     * hex 统一成小写、去掉空白与常见分隔符（用户从日志/文件管理器里粘过来的会有）。
+     *
+     * **多行保留**：一行 = 一条签名。多签名 APK / 签名轮换需要多行，直接过滤掉
+     * 换行会把两条拼成一条非法 hex，等于静默失效。规则集中在
+     * [FakeSignatureCodec]，hook 端用同一套解析。
+     */
+    private fun normalizeHex(hex: String): String {
+        val lines = FakeSignatureCodec.splitHexLines(hex)
+        return if (lines.isEmpty()) "" else FakeSignatureCodec.joinLines(lines)
+    }
 }
 
 /** 合并结果：最终列表 + 新增/覆盖条数。 */
