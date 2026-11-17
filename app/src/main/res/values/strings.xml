@@ -100,10 +100,8 @@
     <string name="page_home">签名助手</string>
     <string name="page_settings">设置</string>
     <string name="settings_behavior">行为</string>
-    <string name="settings_hook_mode">拦截模式</string>
-    <string name="settings_hook_mode_enhanced">增强（推荐）</string>
-    <string name="settings_hook_mode_legacy">原始</string>
-    <string name="settings_hook_mode_summary">原始：只替换 signatures，与旧版一致。增强：同时替换 signatures 与 signingInfo，并覆盖 asUser / VersionedPackage 查询和 hasSigningCertificate。切换后需强制停止被 hook 的应用再打开。</string>
+    <string name="settings_enhanced_mode">增强模式</string>
+    <string name="settings_enhanced_mode_summary">开启：同时伪造 signatures 与 signingInfo，并接管 hasSigningCertificate、asUser / VersionedPackage 查询与多签名。关闭：使用旧版逻辑，只替换 signatures。切换后需强制停止被 hook 的应用再打开。</string>
     <string name="settings_pick_detail">选择应用后进入详情页</string>
     <string name="settings_pick_target">应用详细页跳转</string>
     <string name="settings_pick_target_detail">主页</string>

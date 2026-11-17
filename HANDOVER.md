@@ -43,7 +43,7 @@ app/src/main/java/com/xiang/signhelper/
 │  ├─ screen/installed/           选择已安装应用（缓存、下拉刷新）
 │  ├─ screen/detail/              条目详情（原始/伪造签名）
 │  ├─ screen/oobe/                初次引导
-│  ├─ screen/settings/            设置（含拦截模式开关）
+│  ├─ screen/settings/            设置（含「增强模式」开关）
 │  └─ screen/about/               关于
 └─ util/
    ├─ SignatureUtil.kt            读取已安装应用 / APK / 图标 / 缓存
@@ -58,7 +58,7 @@ app/src/main/java/com/xiang/signhelper/
 - `entries_json`：全部条目的 JSON 数组，UI 读写
 - `forged_packages`：启用伪造的包名，`\n` 分隔
 - `sig:<包名>`：该包的伪造签名（hex，可多行 = 多签名，注入进程读取）
-- `hook_mode`：拦截模式 `enhanced`（默认）/ `legacy`，注入进程读取
+- `hook_mode`：拦截模式 `enhanced`（默认）/ `legacy`，注入进程读取（设置页那个「增强模式」开关写的就是它）
 - 其他设置键：`oobe_done`、`pick_target`、`log_level`、`log_lang`、`app_lang`、`fab_hint_shown` 等
 
 Hook 流程（`MainHook` → `SignatureHookInstaller` → `SignatureForge`）：
@@ -148,7 +148,7 @@ CI：`.github/workflows/ci.yml`（`assembleDebug` + `testDebugUnitTest`，需 `g
 - 应用目录：搜索、条目卡片、开关、长按删除、右上角备份/恢复
 - 选择已安装应用：列表缓存（按包名逐项比较）、下拉刷新、按数量/字段变化更新
 - 条目详情：原始签名 5 行预览（点击展开、长按复制）、伪造签名自动保存（防抖）
-- **双拦截模式**（设置 → 行为 → 拦截模式）：`enhanced` 为超集，`legacy` 为 0.2.x 行为
+- **「增强模式」开关**（设置 → 行为）：开 = `enhanced`（超集），关 = `legacy`（0.2.x 行为）；切换需强制停止被 hook 的应用
 - **增强层**：`signingInfo` 与 `signatures` 同步伪造、覆盖 `getPackageInfoAsUser` /
   `VersionedPackage` 重载、`hasSigningCertificate`、多行多签名
 - **上游键只读兼容**：认 `fakeSignature$$<包名>`，方便从 SignHook 迁移

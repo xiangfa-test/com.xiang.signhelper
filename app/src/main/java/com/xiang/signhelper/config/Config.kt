@@ -275,6 +275,13 @@ object Config {
         set(Key.HOOK_MODE, mode)
     }
 
+    /** 设置页那个开关的语义：开启 = 增强（新版逻辑），关闭 = 原始（旧版逻辑）。 */
+    fun isEnhancedHook(): Boolean = hookMode() != HOOK_MODE_LEGACY
+
+    fun setEnhancedHook(enabled: Boolean) {
+        setHookMode(if (enabled) HOOK_MODE_ENHANCED else HOOK_MODE_LEGACY)
+    }
+
     /** 增强模式：覆盖面更宽，默认值。 */
     const val HOOK_MODE_ENHANCED = "enhanced"
 

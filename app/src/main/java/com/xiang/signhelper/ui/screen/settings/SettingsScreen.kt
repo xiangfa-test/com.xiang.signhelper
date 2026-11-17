@@ -22,6 +22,7 @@ import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
+import top.yukonga.miuix.kmp.preference.SwitchPreference
 
 /**
  * 设置页：行为 / 日志 / 语言 / 开发者。
@@ -33,7 +34,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     var pickTarget by remember { mutableStateOf(Config.pickTarget()) }
-    var hookMode by remember { mutableStateOf(Config.hookMode()) }
+    var enhancedHook by remember { mutableStateOf(Config.isEnhancedHook()) }
     var logLevel by remember { mutableStateOf(Config.logLevel()) }
     var logLang by remember { mutableStateOf(Config.logLanguage()) }
     var appLang by remember { mutableStateOf(Config.appLanguage()) }
@@ -67,22 +68,15 @@ fun SettingsScreen(
             item { SmallTitle(text = stringResource(R.string.settings_behavior)) }
             item {
                 Card(modifier = Modifier.cardPadding()) {
-                    OverlayDropdownPreference(
-                        title = stringResource(R.string.settings_hook_mode),
-                        summary = stringResource(R.string.settings_hook_mode_summary),
-                        items = listOf(
-                            stringResource(R.string.settings_hook_mode_enhanced),
-                            stringResource(R.string.settings_hook_mode_legacy),
-                        ),
-                        selectedIndex = if (hookMode == Config.HOOK_MODE_LEGACY) 1 else 0,
-                        onSelectedIndexChange = { index ->
-                            hookMode = if (index == 1) {
-                                Config.HOOK_MODE_LEGACY
-                            } else {
-                                Config.HOOK_MODE_ENHANCED
-                            }
-                            Config.setHookMode(hookMode)
+                    // 一个开关：开 = 增强（新版逻辑），关 = 旧版逻辑。
+                    SwitchPreference(
+                        checked = enhancedHook,
+                        onCheckedChange = { enabled ->
+                            enhancedHook = enabled
+                            Config.setEnhancedHook(enabled)
                         },
+                        title = stringResource(R.string.settings_enhanced_mode),
+                        summary = stringResource(R.string.settings_enhanced_mode_summary),
                     )
                     OverlayDropdownPreference(
                         title = stringResource(R.string.settings_pick_target),
