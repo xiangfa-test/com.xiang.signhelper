@@ -450,7 +450,14 @@ private data class Acknowledgement(
 )
 
 private val ACKNOWLEDGEMENTS = listOf(
-    Acknowledgement(title = R.string.about_credit_xihan),
+    Acknowledgement(
+        title = R.string.about_credit_signhook,
+        url = "https://github.com/xihan123/SignHook",
+    ),
+    Acknowledgement(
+        title = R.string.about_credit_xihan_author,
+        url = "https://github.com/xihan123",
+    ),
     Acknowledgement(
         title = R.string.about_lib_miuix,
         url = "https://github.com/compose-miuix-ui/miuix",
