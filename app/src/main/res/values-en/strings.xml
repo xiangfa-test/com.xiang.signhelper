@@ -95,7 +95,9 @@
     <string name="page_settings">Settings</string>
     <string name="settings_behavior">Behavior</string>
     <string name="settings_enhanced_mode">Enhanced mode</string>
-    <string name="settings_enhanced_mode_summary">On: forges signatures and signingInfo together, and also handles hasSigningCertificate, asUser / VersionedPackage lookups and multi-signature. Off: uses the legacy logic that only replaces signatures. Force-stop the hooked app after switching.</string>
+    <string name="settings_enhanced_mode_summary">Restart the hooked app after switching</string>
+    <string name="settings_enhanced_mode_detail_title">Enhanced mode</string>
+    <string name="settings_enhanced_mode_detail">When on:\n\n1. Replaces signatures and signingInfo together, so the two no longer disagree;\n2. Takes over hasSigningCertificate checks (raw certificate / SHA-256 digest);\n3. Covers getPackageInfoAsUser and VersionedPackage overloads;\n4. Accepts multi-line forged values, one signature per line.\n\nWhen off, the legacy logic is used: only the two getPackageInfo overloads, and only signatures is replaced.\n\nBoth modes only cover the PackageManager call chain; checks that parse the APK file themselves are unaffected.</string>
     <string name="settings_pick_detail">Open detail after picking an app</string>
     <string name="settings_pick_target">Detail page navigation</string>
     <string name="settings_pick_target_detail">Home</string>

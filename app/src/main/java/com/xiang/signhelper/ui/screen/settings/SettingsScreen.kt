@@ -1,8 +1,14 @@
 package com.xiang.signhelper.ui.screen.settings
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -18,11 +24,20 @@ import com.xiang.signhelper.config.Config
 import com.xiang.signhelper.ui.component.PageScaffold
 import com.xiang.signhelper.ui.component.cardPadding
 import com.xiang.signhelper.ui.component.pageScroll
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.SmallTitle
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Info
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
  * 设置页：行为 / 日志 / 语言 / 开发者。
@@ -35,6 +50,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     var pickTarget by remember { mutableStateOf(Config.pickTarget()) }
     var enhancedHook by remember { mutableStateOf(Config.isEnhancedHook()) }
+    var showEnhancedDetail by remember { mutableStateOf(false) }
     var logLevel by remember { mutableStateOf(Config.logLevel()) }
     var logLang by remember { mutableStateOf(Config.logLanguage()) }
     var appLang by remember { mutableStateOf(Config.appLanguage()) }
@@ -69,6 +85,7 @@ fun SettingsScreen(
             item {
                 Card(modifier = Modifier.cardPadding()) {
                     // 一个开关：开 = 增强（新版逻辑），关 = 旧版逻辑。
+                    // 右侧那个小图标是「详细说明」入口，点开是对话框；点行本身只切换开关。
                     SwitchPreference(
                         checked = enhancedHook,
                         onCheckedChange = { enabled ->
@@ -77,6 +94,15 @@ fun SettingsScreen(
                         },
                         title = stringResource(R.string.settings_enhanced_mode),
                         summary = stringResource(R.string.settings_enhanced_mode_summary),
+                        endActions = {
+                            IconButton(onClick = { showEnhancedDetail = true }) {
+                                Icon(
+                                    imageVector = MiuixIcons.Info,
+                                    contentDescription = stringResource(R.string.settings_enhanced_mode_detail_title),
+                                    tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
+                                )
+                            }
+                        },
                     )
                     OverlayDropdownPreference(
                         title = stringResource(R.string.settings_pick_target),
@@ -165,6 +191,51 @@ fun SettingsScreen(
                     )
                 }
             }
+        }
+    }
+
+    // 「增强模式」的详细说明：点开关右侧的小图标弹出，只读不写。
+    EnhancedModeDialog(
+        show = showEnhancedDetail,
+        onDismiss = { showEnhancedDetail = false },
+    )
+}
+
+/**
+ * 增强模式的说明对话框。
+ *
+ * 正文是左对齐、可滚动的一段说明 —— 用通用 [MessageDialog] 会被居中排版，
+ * 条目一多就不好读，小屏上还会把最后一段挤出对话框。
+ */
+@Composable
+private fun EnhancedModeDialog(
+    show: Boolean,
+    onDismiss: () -> Unit,
+) {
+    OverlayDialog(
+        show = show,
+        title = stringResource(R.string.settings_enhanced_mode_detail_title),
+        onDismissRequest = onDismiss,
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 320.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_enhanced_mode_detail),
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MiuixTheme.textStyles.body2,
+                )
+            }
+            TextButton(
+                text = stringResource(R.string.common_ok),
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColorsPrimary(),
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
