@@ -88,7 +88,12 @@ object Config {
             XposedServiceHelper.registerListener(object : XposedServiceHelper.OnServiceListener {
                 override fun onServiceBind(service: XposedService) {
                     val prefs = runCatching { service.getRemotePreferences(GROUP) }
-                        .onFailure { LogX.w("拿框架远程 preferences 失败：${it.message}") }
+                        .onFailure {
+                        LogX.w(
+                            "拿框架远程 preferences 失败：${it.message}",
+                            "Failed to get framework remote preferences: ${it.message}",
+                        )
+                    }
                         .getOrNull() ?: return
                     remoteWritable = prefs
                     LogX.i(
@@ -106,7 +111,9 @@ object Config {
             )
                 }
             })
-        }.onFailure { LogX.e("注册框架服务监听失败", it) }
+        }.onFailure {
+            LogX.e("注册框架服务监听失败", "Failed to register framework service listener", it)
+        }
     }
 
     /** 把本地那份整体推给框架。 */
@@ -131,7 +138,12 @@ object Config {
                 "已把本地配置推给框架（${src.all.size} 项）",
                 "Pushed local config to framework (${src.all.size} keys)",
             )
-        }.onFailure { LogX.w("推送本地配置失败：${it.message}") }
+        }.onFailure {
+            LogX.w(
+                "推送本地配置失败：${it.message}",
+                "Failed to push local config to framework: ${it.message}",
+            )
+        }
     }
 
     /** 当前进程能不能落盘（注入进程为 `false`）。 */
@@ -150,7 +162,12 @@ object Config {
         HookEnv.module?.let { module ->
             runCatching { module.getRemotePreferences(GROUP) }
                 .onSuccess { remoteReadOnly = it }
-                .onFailure { LogX.w("remotePreferences unavailable: ${it.message}") }
+                .onFailure {
+                LogX.w(
+                    "远程 preferences 不可用：${it.message}",
+                    "Remote preferences unavailable: ${it.message}",
+                )
+            }
         }
         return remoteReadOnly
     }
@@ -174,7 +191,7 @@ object Config {
         if (localPrefs == null && remotePrefs == null) {
             // 注入进程只有只读镜像，edit() 会抛 UnsupportedOperationException，
             // 而且是在宿主主线程上抛 —— 所以这里绝不能尝试写。
-            LogX.w("Config.set($key) 跳过：当前进程不可写")
+            LogX.w("Config.set($key) 跳过：当前进程不可写", "Config.set($key) skipped: this process is read-only")
             return false
         }
         var ok = false
@@ -185,7 +202,10 @@ object Config {
             ok = writeInto(remotePrefs, key, value, sync = true) || ok
         } else {
             // 本地写成功、但推不到框架 = 注入进程永远读不到 → 功能不会生效。
-            LogX.w("[WARN] 框架服务未绑定，$key 只写到了本地：被注入进程读不到")
+            LogX.w(
+                "[WARN] 框架服务未绑定，$key 只写到了本地：被注入进程读不到",
+                "[WARN] Framework service not bound; $key was written locally only (injected processes cannot read it)",
+            )
         }
         return ok
     }
@@ -216,7 +236,7 @@ object Config {
                 true
             }
         }.getOrElse {
-            LogX.e("Config.set($key) 失败", it)
+            LogX.e("Config.set($key) 失败", "Config.set($key) failed", it)
             false
         }
     }

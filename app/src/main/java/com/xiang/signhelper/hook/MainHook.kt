@@ -208,7 +208,11 @@ class MainHook : XposedModule() {
     private fun refreshForgedSignatures() {
         // [1/4] 拿远程 preferences
         val prefs = remotePreferences() ?: run {
-            warnOnce("prefs-unavailable", "远程 preferences 不可用，伪造表保持为空")
+            warnOnce(
+                "prefs-unavailable",
+                "远程 preferences 不可用，伪造表保持为空",
+                "Remote preferences unavailable; the forged table stays empty",
+            )
             return
         }
         // 远程 prefs 在 onPackageLoaded 阶段偶尔还没备好；哪次拿到就在哪次挂监听。
@@ -351,8 +355,8 @@ class MainHook : XposedModule() {
     // ------------------------------------------------------------------ 工具
 
     /** 同一类警告只打一次，避免热路径刷屏。 */
-    private fun warnOnce(key: String, message: String) {
-        if (warnedKeys.add(key)) LogX.w(message)
+    private fun warnOnce(key: String, zh: String, en: String) {
+        if (warnedKeys.add(key)) LogX.w(zh, en)
     }
 
     private companion object {

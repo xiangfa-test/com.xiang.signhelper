@@ -60,7 +60,7 @@ object SignStore {
     fun add(entry: SignEntry): Boolean {
         val normalized = normalize(entry)
         if (normalized == null) {
-            LogX.w("SignStore.add：包名为空，已忽略")
+            LogX.w("SignStore.add：包名为空，已忽略", "SignStore.add: empty package name ignored")
             return false
         }
         synchronized(lock) {
@@ -103,7 +103,7 @@ object SignStore {
             val list = entriesState.value.toMutableList()
             val index = list.indexOfFirst { it.packageName == packageName }
             if (index < 0) {
-                LogX.w("SignStore.setForged：不存在 $packageName")
+                LogX.w("SignStore.setForged：不存在 $packageName", "SignStore.setForged: $packageName not found")
                 return
             }
             list[index] = list[index].copy(forgedSignature = normalizeHex(forgedSignature))
@@ -117,7 +117,7 @@ object SignStore {
             val list = entriesState.value.toMutableList()
             val index = list.indexOfFirst { it.packageName == packageName }
             if (index < 0) {
-                LogX.w("SignStore.setEnabled：不存在 $packageName")
+                LogX.w("SignStore.setEnabled：不存在 $packageName", "SignStore.setEnabled: $packageName not found")
                 return
             }
             list[index] = list[index].copy(isForged = enabled)
@@ -181,7 +181,7 @@ object SignStore {
             val list = entriesState.value.toMutableList()
             val index = list.indexOfFirst { it.packageName == packageName }
             if (index < 0) {
-                LogX.w("SignStore.updateOriginal：不存在 $packageName")
+                LogX.w("SignStore.updateOriginal：不存在 $packageName", "SignStore.updateOriginal: $packageName not found")
                 return false
             }
             list[index] = list[index].copy(
@@ -221,7 +221,12 @@ object SignStore {
         val array = JSONArray()
         for (entry in list) array.put(entry.toJson())
         val ok = Config.set(Config.Key.ENTRIES_JSON, array.toString())
-        if (!ok) LogX.w("entries_json 落盘失败（框架未绑定？），界面状态仍已更新")
+        if (!ok) {
+            LogX.w(
+                "entries_json 落盘失败（框架未绑定？），界面状态仍已更新",
+                "Failed to persist entries_json (framework unbound?); UI state updated anyway",
+            )
+        }
         return ok
     }
 
@@ -270,7 +275,7 @@ object SignStore {
                 SignEntry.fromJson(obj)?.let(out::add)
             }
             out
-        }.onFailure { LogX.e("解析 entries_json 失败，按空列表处理", it) }
+        }.onFailure { LogX.e("解析 entries_json 失败，按空列表处理", "Failed to parse entries_json; using an empty list", it) }
             .getOrDefault(emptyList())
     }
 

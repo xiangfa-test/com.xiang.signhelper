@@ -157,7 +157,12 @@ object SignatureUtil {
             )
         }
         out
-    }.onFailure { LogX.w("读取已安装应用缓存失败：${it.message}") }.getOrNull()
+    }.onFailure {
+            LogX.w(
+                "读取已安装应用缓存失败：${it.message}",
+                "Failed to read the installed-app cache: ${it.message}",
+            )
+        }.getOrNull()
 
     /** 缓存已安装应用列表（下次打开先展示缓存，再按内容变化增量刷新）。 */
     fun saveInstalledAppsCache(context: Context, apps: List<InstalledApp>) {
@@ -187,14 +192,21 @@ object SignatureUtil {
             } catch (_: Exception) {
                 temp.renameTo(target)
             }
-        }.onFailure { LogX.w("写入已安装应用缓存失败：${it.message}") }
+        }.onFailure {
+            LogX.w(
+                "写入已安装应用缓存失败：${it.message}",
+                "Failed to write the installed-app cache: ${it.message}",
+            )
+        }
     }
 
     /** 权限被限制时，靠 intent / provider 反查包名。 */
     private fun queryPackageNames(pm: PackageManager): List<String> {
         val names = LinkedHashSet<String>()
         fun add(block: () -> List<String>) {
-            runCatching { names += block() }.onFailure { LogX.e("枚举安装包失败", it) }
+            runCatching { names += block() }.onFailure {
+            LogX.e("枚举安装包失败", "Failed to enumerate packages", it)
+        }
         }
         add {
             pm.queryIntentActivities(
@@ -237,12 +249,14 @@ object SignatureUtil {
                 packageName,
                 PackageManager.GET_SIGNATURES or PackageManager.GET_SIGNING_CERTIFICATES,
             )
-        }.onFailure { LogX.e("读取已安装应用失败：$packageName", it) }
+        }.onFailure {
+            LogX.e("读取已安装应用失败：$packageName", "Failed to read installed app: $packageName", it)
+        }
             .getOrNull() ?: return null
 
         val signatures = pickSignatures(info)
         if (signatures.isEmpty()) {
-            LogX.w("已安装应用没有签名：$packageName")
+            LogX.w("已安装应用没有签名：$packageName", "Installed app has no signature: $packageName")
             return null
         }
         val label = runCatching { pm.getApplicationInfo(packageName, 0).loadLabel(pm).toString() }
@@ -250,7 +264,7 @@ object SignatureUtil {
             .ifBlank { packageName }
         val hex = signaturesHex(signatures)
         if (hex.isEmpty()) {
-            LogX.w("签名转换失败：$packageName")
+            LogX.w("签名转换失败：$packageName", "Failed to convert signature: $packageName")
             return null
         }
         return ApkMeta(
@@ -274,27 +288,27 @@ object SignatureUtil {
         val tempApk = runCatching {
             copyToCache(context, uri)
         }.onFailure {
-            LogX.e("复制 APK 到缓存失败：$uri", it)
+            LogX.e("复制 APK 到缓存失败：$uri", "Failed to copy the APK into cache: $uri", it)
         }.getOrNull() ?: return null
 
         val archive = readArchiveInfo(context.packageManager, tempApk.absolutePath)
         if (archive == null) {
-            LogX.w("不是可解析的 APK：$apkName")
+            LogX.w("不是可解析的 APK：$apkName", "Not a parsable APK: $apkName")
             return null
         }
         val packageName = archive.first.packageName.orEmpty().trim()
         if (packageName.isEmpty()) {
-            LogX.w("APK 没有包名：$apkName")
+            LogX.w("APK 没有包名：$apkName", "APK has no package name: $apkName")
             return null
         }
         val signatures = archive.second
         if (signatures.isEmpty()) {
-            LogX.w("APK 没有签名：$apkName")
+            LogX.w("APK 没有签名：$apkName", "APK has no signature: $apkName")
             return null
         }
         val hex = signaturesHex(signatures)
         if (hex.isEmpty()) {
-            LogX.w("签名转换失败：$apkName")
+            LogX.w("签名转换失败：$apkName", "Failed to convert signature: $apkName")
             return null
         }
         return ApkMeta(

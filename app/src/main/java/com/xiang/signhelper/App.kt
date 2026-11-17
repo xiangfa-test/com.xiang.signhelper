@@ -21,7 +21,7 @@ class App : Application() {
             Config.init(this)
         } catch (t: Throwable) {
             // Application 里绝不能让异常冒出去 —— 那会直接崩在启动页。
-            LogX.e("App.onCreate failed", t)
+            LogX.e("App 初始化失败", "App.onCreate failed", t)
         }
     }
 }
