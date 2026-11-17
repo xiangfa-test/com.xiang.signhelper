@@ -85,6 +85,13 @@ fun EntryDetailScreen(
     val prettyOriginal = remember(original) { SignatureUtil.prettifyHex(original) }
     BackHandler(onBack = onBack)
 
+    // 伪造值按"一行一条"校验：多行是合法输入（hook 端按行解析），
+    // 只有某一行不是 hex 才算非法。
+    val forgedLines = remember(forged) {
+        forged.lineSequence().map(String::trim).filter(String::isNotEmpty).toList()
+    }
+    val allHex = forgedLines.isNotEmpty() && forgedLines.all(::isHex)
+
     // 输入即更新本地状态，写盘做防抖；离开页面时再强制落一次，避免丢最后一次编辑。
     val latestForged by rememberUpdatedState(forged)
     LaunchedEffect(forged) {
@@ -92,7 +99,7 @@ fun EntryDetailScreen(
         delay(400)
         if (forged.isBlank()) {
             SignStore.setForged(current.packageName, "")
-        } else if (isHex(forged)) {
+        } else if (allHex) {
             SignStore.setForged(current.packageName, forged)
             SignStore.setEnabled(current.packageName, true)
         }
@@ -100,14 +107,16 @@ fun EntryDetailScreen(
     DisposableEffect(current.packageName) {
         onDispose {
             val value = latestForged
-            if (value.isNotBlank() && isHex(value) && value != current.forgedSignature) {
+            val lines = value.lineSequence().map(String::trim).filter(String::isNotEmpty).toList()
+            val ok = lines.isNotEmpty() && lines.all(::isHex)
+            if (ok && value != current.forgedSignature) {
                 SignStore.setForged(current.packageName, value)
                 SignStore.setEnabled(current.packageName, true)
             }
         }
     }
 
-    val valid = isHex(forged)
+    val valid = allHex
     val scrollBehavior = MiuixScrollBehavior()
 
     Scaffold(
@@ -200,9 +209,21 @@ fun EntryDetailScreen(
                             maxLines = 3,
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        if (!valid) {
+                        if (!valid && forged.isNotBlank()) {
                             Text(
                                 text = stringResource(R.string.catalog_edit_error),
+                                modifier = Modifier.padding(top = 6.dp, start = 4.dp),
+                                color = MiuixTheme.colorScheme.error,
+                                style = MiuixTheme.textStyles.footnote2,
+                            )
+                        } else if (forgedLines.size > 1) {
+                            // 单签名应用填了多行：hook 会全部下发，但签名张数与真实值不一致。
+                            Text(
+                                text = stringResource(
+                                    R.string.detail_multi_count,
+                                    forgedLines.size,
+                                    current.signerCount,
+                                ),
                                 modifier = Modifier.padding(top = 6.dp, start = 4.dp),
                                 color = MiuixTheme.colorScheme.error,
                                 style = MiuixTheme.textStyles.footnote2,
