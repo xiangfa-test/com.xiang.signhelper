@@ -31,7 +31,10 @@ app/src/main/java/com/xiang/signhelper/
 ├─ data/
 │  ├─ SignEntry.kt                条目模型 + JSON 序列化
 │  └─ SignStore.kt                条目仓库（Compose 状态 + 持久化 + hook 键同步）
-├─ hook/MainHook.kt               libxposed 入口：挂 getPackageInfo，替换 signatures
+├─ hook/
+│  ├─ MainHook.kt                 libxposed 入口：生命周期 / 读配置 / 按模式装 hook
+│  ├─ SignatureHookInstaller.kt   两套装法（原始 / 增强），含安装期分步日志
+│  └─ SignatureForge.kt           签名合成：signatures + signingInfo + 证书比对
 ├─ ui/
 │  ├─ MainActivity.kt             NavDisplay 容器、路由、选择应用流程
 │  ├─ component/                  PageScaffold、AppIcon、对话框、底栏等
@@ -40,10 +43,11 @@ app/src/main/java/com/xiang/signhelper/
 │  ├─ screen/installed/           选择已安装应用（缓存、下拉刷新）
 │  ├─ screen/detail/              条目详情（原始/伪造签名）
 │  ├─ screen/oobe/                初次引导
-│  ├─ screen/settings/            设置
+│  ├─ screen/settings/            设置（含拦截模式开关）
 │  └─ screen/about/               关于
 └─ util/
    ├─ SignatureUtil.kt            读取已安装应用 / APK / 图标 / 缓存
+   ├─ FakeSignatureCodec.kt       伪造签名文本编解码（单/多行，UI 与 hook 共用）
    └─ LogX.kt                     日志出口（logcat + LSPosed，支持中英双语）
 ```
 
@@ -53,17 +57,42 @@ app/src/main/java/com/xiang/signhelper/
 
 - `entries_json`：全部条目的 JSON 数组，UI 读写
 - `forged_packages`：启用伪造的包名，`\n` 分隔
-- `sig:<包名>`：该包的伪造签名 hex（注入进程读取）
+- `sig:<包名>`：该包的伪造签名（hex，可多行 = 多签名，注入进程读取）
+- `hook_mode`：拦截模式 `enhanced`（默认）/ `legacy`，注入进程读取
 - 其他设置键：`oobe_done`、`pick_target`、`log_level`、`log_lang`、`app_lang`、`fab_hint_shown` 等
 
-Hook 流程（`MainHook`）：
+Hook 流程（`MainHook` → `SignatureHookInstaller` → `SignatureForge`）：
 
-1. 模块加载后读取伪造表
-2. 在宿主进程挂 `ApplicationPackageManager#getPackageInfo` 各重载
-3. 命中目标包时，把返回的 `PackageInfo.signatures` 替换为配置的伪造签名
-4. 需要用户在 LSPosed 中勾选被 hook 的应用；修改伪造签名后通常需强制停止宿主应用再打开
+1. 模块加载后读取伪造表与 `hook_mode`（`refreshForgedSignatures`）
+2. 按模式在宿主进程装 hook：
 
-注意：`forged_packages` / `sig:` 是注入进程的协议键，改名会导致 hook 失效。
+   | 模式 | 装什么 | 改什么 |
+   | --- | --- | --- |
+   | `legacy`（原始） | 写死的两个重载：`getPackageInfo(String,int)`、`getPackageInfo(String,PackageInfoFlags)` | 只改 `PackageInfo.signatures` |
+   | `enhanced`（增强，默认） | 语义扫描：返回 `PackageInfo` 且方法名 ∈ {`getPackageInfo`,`getPackageInfoAsUser`}、首参 `String` 或 `VersionedPackage`；另加 `hasSigningCertificate(String,byte[],int)` | `signatures` **与** `signingInfo` 一起伪造；证书校验直接答 `true` |
+
+3. 命中目标包时由 `SignatureForge.applyTo` 就地改写返回对象
+4. 需要用户在 LSPosed 中勾选被 hook 的应用；**改配置或改模式后必须强制停止宿主应用再打开**
+   （hook 只在进程启动时装一次）
+
+注意：`forged_packages` / `sig:` / `hook_mode` 是注入进程的协议键，改名会导致 hook 失效。
+
+上游 `xihan123/SignHook` 的键（`fakeSignature$$<包名>` / `fakeSignatureEnabled$$<包名>`）
+**只做只读兼容**：`MainHook#mergeUpstreamEntries` 会把它们补进伪造表（同包名以本地键为准），
+用于迁移或手工搬配置。写协议不跟着改，老配置零迁移。
+
+### 日志（排障入口）
+
+`adb logcat -s SignHelper:*`，或 LSPosed 日志。安装期与配置期**每步都有前缀**：
+
+- `[启动] 1/3 → 2/3 → 3/3`：命中包、配置就绪（条数 + 模式）、hook 安装结果
+- `[配置] 2/4 / 4/4`：主协议清单条数、有效条数、缺签名条数、模式原始值
+- `[安装] 1/4 → 4/4`：定位实现类、选模式、扫描候选（含"疑似目标但未命中"清单）、逐个装、汇总
+- `[签名合成]`：解析出几条签名、`SigningDetails` 用了哪种构造器形状、`signingInfo` 是否重建成功、
+  `hasSigningCertificate` 的类型与比对结果
+
+热路径（每次 `getPackageInfo`）的 INFO 有配额（解析 3 次 / 应用 3 次 / 证书 5 次），异常走
+一次性 WARN/ERROR，不会刷屏。
 
 ## 5. 签名与构建
 
@@ -119,6 +148,10 @@ CI：`.github/workflows/ci.yml`（`assembleDebug` + `testDebugUnitTest`，需 `g
 - 应用目录：搜索、条目卡片、开关、长按删除、右上角备份/恢复
 - 选择已安装应用：列表缓存（按包名逐项比较）、下拉刷新、按数量/字段变化更新
 - 条目详情：原始签名 5 行预览（点击展开、长按复制）、伪造签名自动保存（防抖）
+- **双拦截模式**（设置 → 行为 → 拦截模式）：`enhanced` 为超集，`legacy` 为 0.2.x 行为
+- **增强层**：`signingInfo` 与 `signatures` 同步伪造、覆盖 `getPackageInfoAsUser` /
+  `VersionedPackage` 重载、`hasSigningCertificate`、多行多签名
+- **上游键只读兼容**：认 `fakeSignature$$<包名>`，方便从 SignHook 迁移
 - OOBE：欢迎 / 基础操作 / 跳转行为 / 免责协议 / 完成页
 - 设置：应用详细页跳转、日志输出与语言、界面语言、OOBE 重放
 - 主页「选择 APK」改为右下角悬浮按钮，升级后提示一次
@@ -138,6 +171,11 @@ CI：`.github/workflows/ci.yml`（`assembleDebug` + `testDebugUnitTest`，需 `g
 - 不要提交 `keystore.properties`、`*.p12`、`*.jks`
 - 密钥已移到工作区 `_keys/`，不在任何仓库内
 - 修改 `entries_json` / hook 协议键时要同时检查 `SignStore` 与 `MainHook`
+- 改 `SignatureHookInstaller` 的扫描条件后，务必看 `[安装]` 日志里的"疑似目标但未命中"清单：
+  那是 ROM 差异唯一能被看见的地方
+- 增强层（`signingInfo` 合成）依赖 `SigningDetails` 反射，失败时**只降级不崩**：
+  日志出现 `signingInfo 重建失败` 就说明这台机器上只剩 `signatures` 生效
+- 两套模式共用同一份配置与同一套 `SignatureForge`，差别只在"装哪些 hook、改不改 `signingInfo`"
 - 本机 Gradle/Kotlin daemon 偶发 `AccessDeniedException` 临时文件警告，一般可忽略；必要时 `--no-daemon`
 - 设备无线 adb 可能掉线，重连用 `adb mdns services` 找地址
 - 项目仍会继续维护；接手者完成结构性改动后请更新本文件

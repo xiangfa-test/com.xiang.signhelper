@@ -27,9 +27,13 @@
 - **应用目录**：选择已安装应用 / 选择 APK 加入列表；条目展示原始签名、伪造签名与启用开关；
   点击改签名，长按删除
 - **选择已安装应用**：独立二级页，带搜索、排序（名称 / 最后更新 / 反向）与范围（用户 / 系统 / 全部）
-- **Hook**：后置拦截 `ApplicationPackageManager#getPackageInfo(String, int)` 与
-  `getPackageInfo(String, PackageInfoFlags)`；命中伪造表时替换 `PackageInfo.signatures`，
-  异常全部 PROTECTIVE，不影响宿主
+- **Hook（两种拦截模式，设置里可切）**：
+  - **增强（默认）**：按语义覆盖 `getPackageInfo` / `getPackageInfoAsUser` 的 `String` 与
+    `VersionedPackage` 重载，命中时把 `PackageInfo.signatures` **与** `signingInfo` 一起替换，
+    并接管 `hasSigningCertificate` 的证书比对；伪造值支持多行（多签名）
+  - **原始**：只挂 `getPackageInfo(String,int)` 与 `getPackageInfo(String,PackageInfoFlags)`，
+    只替换 `signatures`，行为与 0.2.x 逐条一致，便于定位问题
+  - 异常全部 PROTECTIVE，不影响宿主；切换模式或改配置后需强制停止被 hook 的应用再打开
 - **关于页**：构建时间、作者、致谢（xihan / Miuix / libxposed / LSPosed）
 
 ## 构建
@@ -62,7 +66,12 @@
 
 - `entries_json`：完整条目（UI 用）
 - `forged_packages`：生效中的包名（`\n` 分隔）
-- `sig:<包名>`：该包的伪造签名（hex）
+- `sig:<包名>`：该包的伪造签名（hex，多行 = 多签名）
+- `hook_mode`：拦截模式 `enhanced` / `legacy`（注入进程读取）
+
+另外**只读兼容**上游 [SignHook](https://github.com/xihan123/SignHook) 的键
+`fakeSignature$$<包名>` / `fakeSignatureEnabled$$<包名>`：同包名时以本模块的键为准，
+方便从上游迁移或手工搬配置。
 
 ## 发布频道
 
