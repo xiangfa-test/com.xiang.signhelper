@@ -65,7 +65,8 @@
     <string name="installed_permission_settings">Open app settings</string>
     <string name="installed_permission_later">Not now</string>
     <string name="installed_permission_banner">“App list” permission is off — tap to open app settings</string>
-    <string name="about_credit_xihan">xihan (original author)</string>
+    <string name="about_credit_signhook">SignHook</string>
+    <string name="about_credit_xihan_author">xihan</string>
     <string name="about_credit_xihan_unknown">The original author link is currently unknown</string>
     <string name="catalog_backup">Backup</string>
     <string name="catalog_backup_summary">Export the app list and signatures to a JSON file</string>
@@ -89,6 +90,13 @@
     <string name="detail_enable">Enable forging</string>
     <string name="detail_fetching">Reading the installed app signature…</string>
     <string name="detail_fetch_failed">Could not read the installed app signature</string>
+    <string name="detail_multi_badge">Multi-signer ×%1$d</string>
+    <string name="detail_multi_signers">Signatures (%1$d)</string>
+    <string name="detail_multi_signer">Signature %1$d</string>
+    <string name="detail_multi_summary">This app has %1$d signatures. Fill the same number of signatures in order; fewer or more will not match the real signer set.</string>
+    <string name="detail_multi_forged_hint">One signature per line, %1$d in total</string>
+    <string name="detail_multi_count">%1$d filled, %2$d expected</string>
+    <string name="detail_multi_copy_hint">Tap to view, long-press to copy</string>
     <string name="catalog_search_hint">Search by app name or package</string>
     <string name="catalog_no_match">No matching apps</string>
     <string name="page_home">SignHelper</string>

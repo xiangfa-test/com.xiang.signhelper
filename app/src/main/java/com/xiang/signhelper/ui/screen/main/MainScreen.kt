@@ -26,6 +26,7 @@ import com.xiang.signhelper.ui.component.bottombar.FloatingBottomBar
 import com.xiang.signhelper.ui.component.bottombar.bottomBarContentPadding
 import com.xiang.signhelper.ui.component.rememberBlurBackdrop
 import com.xiang.signhelper.ui.navigation3.LocalNavigator
+import com.xiang.signhelper.data.SignStore
 import com.xiang.signhelper.ui.navigation3.Route
 import com.xiang.signhelper.ui.screen.about.AboutScreen
 import com.xiang.signhelper.ui.screen.catalog.CatalogScreen
@@ -115,7 +116,17 @@ fun MainScreen(
                             onPendingInstalledConsumed = onPendingInstalledConsumed,
                             onOpenInstalledPicker = onOpenInstalledPicker,
                             onOpenDetail = { packageName, fromPicker ->
-                                navigator.push(Route.EntryDetail(packageName, fromPicker))
+                                // 多签名应用走专属页面，其余仍是原来的详情页。
+                                val multi = SignStore.entries
+                                    .firstOrNull { it.packageName == packageName }
+                                    ?.isMultiSigner == true
+                                navigator.push(
+                                    if (multi) {
+                                        Route.MultiSignerDetail(packageName, fromPicker)
+                                    } else {
+                                        Route.EntryDetail(packageName, fromPicker)
+                                    },
+                                )
                             },
                         )
 

@@ -29,6 +29,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.xiang.signhelper.ui.navigation3.rememberNavigator
 import com.xiang.signhelper.ui.screen.detail.EntryDetailScreen
+import com.xiang.signhelper.ui.screen.detail.MultiSignerDetailScreen
 import com.xiang.signhelper.ui.screen.installed.InstalledAppPickerScreen
 import com.xiang.signhelper.ui.screen.main.MainScreen
 import com.xiang.signhelper.ui.theme.AppTheme
@@ -136,7 +137,15 @@ class MainActivity : ComponentActivity() {
                                                 )
                                             }
                                             pendingInstalledPackage = packageName
-                                            val detail = Route.EntryDetail(packageName, fromPicker = true)
+                                            // 多签名应用走专属页；入库后再判断，条目一定存在。
+                                            val multi = SignStore.entries
+                                                .firstOrNull { it.packageName == packageName }
+                                                ?.isMultiSigner == true
+                                            val detail = if (multi) {
+                                                Route.MultiSignerDetail(packageName, fromPicker = true)
+                                            } else {
+                                                Route.EntryDetail(packageName, fromPicker = true)
+                                            }
                                             if (Config.pickTarget() == "list") {
                                                 navigator.push(detail)
                                             } else {
@@ -150,6 +159,12 @@ class MainActivity : ComponentActivity() {
                             }
                             entry<Route.EntryDetail>(swipeDismiss = swipeDismiss) { entry ->
                                 EntryDetailScreen(
+                                    packageName = entry.packageName,
+                                    onBack = { navigator.pop() },
+                                )
+                            }
+                            entry<Route.MultiSignerDetail>(swipeDismiss = swipeDismiss) { entry ->
+                                MultiSignerDetailScreen(
                                     packageName = entry.packageName,
                                     onBack = { navigator.pop() },
                                 )

@@ -71,7 +71,8 @@
     <string name="installed_permission_settings">打开应用设置</string>
     <string name="installed_permission_later">暂不</string>
     <string name="installed_permission_banner">未开启「获取应用列表」权限，点此去应用设置开启</string>
-    <string name="about_credit_xihan">xihan（原版作者）</string>
+    <string name="about_credit_signhook">SignHook</string>
+    <string name="about_credit_xihan_author">xihan</string>
     <string name="about_credit_xihan_unknown">暂不清楚原作者的相关链接</string>
     <string name="catalog_backup">备份配置</string>
     <string name="catalog_backup_summary">把应用列表与签名导出为 JSON 文件</string>
@@ -95,13 +96,19 @@
     <string name="detail_enable">启用伪造</string>
     <string name="detail_fetching">正在读取已安装应用的签名…</string>
     <string name="detail_fetch_failed">未读到已安装应用的签名，可能未安装</string>
+    <string name="detail_multi_badge">多签名 ×%1$d</string>
+    <string name="detail_multi_signers">签名（%1$d 张）</string>
+    <string name="detail_multi_signer">签名 %1$d</string>
+    <string name="detail_multi_summary">该应用有 %1$d 张签名。伪造时按顺序填同样数量的签名；少填或多填都会与真实签名集合不一致。</string>
+    <string name="detail_multi_forged_hint">一行一条签名，共 %1$d 条</string>
+    <string name="detail_multi_count">已填 %1$d 条，目标 %2$d 条</string>
+    <string name="detail_multi_copy_hint">点击查看，长按复制</string>
     <string name="catalog_search_hint">搜索应用名或包名</string>
     <string name="catalog_no_match">没有匹配的应用</string>
     <string name="page_home">签名助手</string>
     <string name="page_settings">设置</string>
     <string name="settings_behavior">行为</string>
-    <string name="settings_enhanced_mode">增强模式</string>
-    <string name="settings_enhanced_mode_summary">切换后需要重启被 hook 的应用</string>
+    <string name="settings_enhanced_mode">增强模式</string>    <string name="settings_enhanced_mode_summary">切换后需要重启被 hook 的应用</string>
     <string name="settings_enhanced_mode_detail_title">增强模式</string>
     <string name="settings_enhanced_mode_detail">开启后：\n\n1. 同时替换 signatures 与 signingInfo，避免两者不一致被校验发现；\n2. 接管 hasSigningCertificate 的证书询问（原始证书 / SHA-256 摘要）；\n3. 覆盖 getPackageInfoAsUser 与 VersionedPackage 重载；\n4. 伪造值支持多行，一行一条签名。\n\n关闭后回到旧版逻辑：只挂 getPackageInfo 的两个重载、只替换 signatures。\n\n两种模式都只作用于 PackageManager 调用链，宿主自己解包 APK 验签的校验不受影响。</string>
     <string name="settings_pick_detail">选择应用后进入详情页</string>

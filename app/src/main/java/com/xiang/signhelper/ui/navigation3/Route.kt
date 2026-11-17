@@ -25,4 +25,15 @@ sealed interface Route : NavKey {
         /** true = 从「选择已安装应用」列表进入，返回时可按设置回到应用列表。 */
         val fromPicker: Boolean = false,
     ) : Route
+
+    /**
+     * 多签名应用的详情页。
+     *
+     * 与 [EntryDetail] 分开成独立路由，而不是在同一个页面里塞条件分支 ——
+     * 多签名应用要逐张展示签名、按条数校验伪造值，布局与单签名页差别太大。
+     */
+    data class MultiSignerDetail(
+        val packageName: String,
+        val fromPicker: Boolean = false,
+    ) : Route
 }

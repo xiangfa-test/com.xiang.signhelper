@@ -42,8 +42,15 @@ object SignatureUtil {
         val apkName: String,
         /** 清单里的包名。 */
         val packageName: String,
-        /** 第一个签名的 hex（小写、无分隔）。 */
+        /**
+         * **全部**签名的 hex（小写、无分隔），一行一张。
+         *
+         * 单签名应用只有一行；多签名 APK（联合签名 / 平台+厂商）与签名轮换会多行。
+         * 只取第一张会让"照抄原签名做等比伪造"少一张，校验方比较签名数量时会不一致。
+         */
         val signatureHex: String,
+        /** 签名张数（= [signatureHex] 的非空行数，至少 1）。 */
+        val signerCount: Int = 1,
     )
 
     /** 「已安装应用」选择器的一行数据。 */
@@ -241,10 +248,16 @@ object SignatureUtil {
         val label = runCatching { pm.getApplicationInfo(packageName, 0).loadLabel(pm).toString() }
             .getOrDefault(packageName)
             .ifBlank { packageName }
+        val hex = signaturesHex(signatures)
+        if (hex.isEmpty()) {
+            LogX.w("签名转换失败：$packageName")
+            return null
+        }
         return ApkMeta(
             apkName = label,
             packageName = info.packageName ?: packageName,
-            signatureHex = signatureHex(signatures[0]),
+            signatureHex = hex,
+            signerCount = hex.lineSequence().count { it.isNotBlank() },
         )
     }
 
@@ -279,13 +292,25 @@ object SignatureUtil {
             LogX.w("APK 没有签名：$apkName")
             return null
         }
-        val hex = signatureHex(signatures[0])
+        val hex = signaturesHex(signatures)
         if (hex.isEmpty()) {
             LogX.w("签名转换失败：$apkName")
             return null
         }
-        return ApkMeta(apkName = apkName, packageName = packageName, signatureHex = hex)
+        return ApkMeta(
+            apkName = apkName,
+            packageName = packageName,
+            signatureHex = hex,
+            signerCount = hex.lineSequence().count { it.isNotBlank() },
+        )
     }
+
+    /** 全部签名 -> 多行 hex（一张一行，空项丢掉）。 */
+    private fun signaturesHex(signatures: Array<Signature>): String =
+        signatures.asSequence()
+            .map { signatureHex(it) }
+            .filter { it.isNotEmpty() }
+            .joinToString("\n")
 
     /**
      * 把 [Signature] 转成小写、无分隔的 hex。

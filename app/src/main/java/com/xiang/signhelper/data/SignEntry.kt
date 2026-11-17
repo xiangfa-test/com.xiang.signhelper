@@ -41,6 +41,22 @@ data class SignEntry(
     val effective: Boolean
         get() = isForged && forgedSignature.isNotBlank()
 
+    /**
+     * 原始签名有几张（多行 = 多张）。
+     *
+     * 多签名 APK / 签名轮换会读出多行；只存第一张那种历史数据算 1 张。
+     */
+    val signerCount: Int
+        get() = if (originalSignature.isBlank()) {
+            1
+        } else {
+            originalSignature.lineSequence().count { it.isNotBlank() }.coerceAtLeast(1)
+        }
+
+    /** 是否多签名应用（决定详情页用哪个界面）。 */
+    val isMultiSigner: Boolean
+        get() = signerCount > 1
+
     /** 序列化成一个 JSON 对象，键名与旧版本保持同名，方便迁移。 */
     fun toJson(): JSONObject = JSONObject().apply {
         put(KEY_PACKAGE_NAME, packageName)
