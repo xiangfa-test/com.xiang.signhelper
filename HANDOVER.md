@@ -152,6 +152,7 @@ CI：`.github/workflows/ci.yml`（`assembleDebug` + `testDebugUnitTest`，需 `g
 - **增强层**：`signingInfo` 与 `signatures` 同步伪造、覆盖 `getPackageInfoAsUser` /
   `VersionedPackage` 重载、`hasSigningCertificate`、多行多签名
 - **上游键只读兼容**：认 `fakeSignature$$<包名>`，方便从 SignHook 迁移
+- **配置变更惰性合并刷新**：监听器只置脏标记，下一次查询才重建（避免一次推送重建 8+ 次）
 - OOBE：欢迎 / 基础操作 / 跳转行为 / 免责协议 / 完成页
 - 设置：应用详细页跳转、日志输出与语言、界面语言、OOBE 重放
 - 主页「选择 APK」改为右下角悬浮按钮，升级后提示一次
@@ -188,3 +189,54 @@ CI：`.github/workflows/ci.yml`（`assembleDebug` + `testDebugUnitTest`，需 `g
 4. 发版前先问用户是否要发、版本号用什么；发布流程见第 6 节
 5. 不要读取或提交 `keystore.properties` / `_keys/` 里的密钥内容
 6. 需要继续修页面切换时，优先考虑把主页/选择页/详情收进同一状态机，而不是继续叠 NavDisplay 路由
+
+## 10. 真机实测记录（2026-11-18，Android 15 / LSPosed 2.2.1）
+
+### 环境
+
+- MuMu 模拟器：Android 15（SDK 35）/ x86_64 / KernelSU + LSPosed **2.2.1 (7940)，API 102，开发者模式开**
+- 宿主：自建探针 `com.probe.sig`（只做签名读取并打 logcat，不联网）
+- 目标包：`com.tencent.qqmusic`
+- 配置注入：root 直接预写 `/data/data/<pkg>/shared_prefs/signhelper_config.xml`，
+  再启动一次模块 Activity 让它 `pushAllToFramework()`，比走 UI 输入长 hex 省事
+
+### 期望 vs 实测
+
+| 配置 | A `signatures` | B `signingInfo` | C `VersionedPackage` | D/E `hasSigningCertificate` | F 随机证书 |
+| --- | --- | --- | --- | --- | --- |
+| 无 hook（基线） | 真签名 587B | 真签名 | 真签名 | false / false | false |
+| `legacy` | **deadbeef** | **真签名（漏洞）** | 真签名 | false / false | false |
+| `enhanced` + deadbeef | deadbeef | **deadbeef** | **deadbeef** | **true / true** | false |
+| `enhanced` + 真实证书 717B | 83ac… | 83ac… | 83ac… | false / false | false |
+| `enhanced` + 多签名（真实证书 + deadbeef） | 83ac…│deadbeef | 83ac…│deadbeef | 83ac…│deadbeef | **true / true** | false |
+
+结论：增强层确实补上了 `signingInfo` 与 `hasSigningCertificate` 两条路径，`legacy` 的旧行为未被破坏。
+
+### 实际挂上的方法（Android 15，enhanced 共 7 个）
+
+```
+getPackageInfo(VersionedPackage, int)             getPackageInfoAsUser(String, int, int)
+getPackageInfo(VersionedPackage, PackageInfoFlags) getPackageInfoAsUser(String, PackageInfoFlags, int)
+getPackageInfo(String, int)                        hasSigningCertificate(String, byte[], int)
+getPackageInfo(String, PackageInfoFlags)
+```
+
+`SigningDetails` 命中的构造器形状：`Signature[], int, ArraySet, Signature[]`。
+
+### 配置热更新
+
+- 监听器只置位 `refreshPending`，由**下一次 `getPackageInfo`** 合并刷新。
+  实测：推一次配置 + 再查询 = **1 次**重建（修复前同一秒 8+ 次）。
+- 同一进程内改配置后再次查询即生效，**不需要重启宿主进程**；但切换 `hook_mode`
+  仍需要重启宿主（hook 只在进程启动时装）。
+
+### 踩坑（下次照做）
+
+- `adb logcat -c` 会清掉 `[安装]` 那批行；**完整记录看 `/data/adb/lspd/log/modules_*.log`**（root 才能读）
+- `am start -n <pkg>/.ui.MainActivity` **会失败**：`applicationId` 与 namespace 不同，必须写全名
+  `io.github.xiangfa_test.signhelper/com.xiang.signhelper.ui.MainActivity`
+- 推送 prefs 后必须 `chown <app uid>:<app uid>` + `restorecon`，否则模块读不到
+- 用 `deadbeef` 这类非法 DER 当伪造值时会看到 `公钥集为空` 警告，**属预期**；
+  换成真实证书 hex 就不再出现
+- `lspctl` 每条命令结尾都会 `Segmentation fault`，但命令实际已生效（看输出内容判断成败）
+- 探针源码与构建产物：工作区 `_tools/probe-sig/`（不随仓库提交）
