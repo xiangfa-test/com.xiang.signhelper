@@ -78,9 +78,21 @@ class MainHook : XposedModule() {
     @Volatile
     private var listenerRegistered = false
 
+    /**
+     * "配置被改过"的标记。
+     *
+     * 监听器**不直接重建**伪造表：模块界面推一批配置时会写好几个键
+     * （`forged_packages`、`sig:*`、`hook_mode`…），一次 commit 一个变更通知，
+     * 直接重建会连着重建七八次（真机实测如此），纯属浪费。
+     *
+     * 改成置位，然后由**下一次 `getPackageInfo` 查询**合并刷新一次 —— 宿主真正
+     * 用到签名时配置必然已经是最新的，中间不做无用功。
+     */
+    private val refreshPending = AtomicBoolean(false)
+
     /** 持有监听器强引用 —— SharedPreferences 内部用弱引用存监听器，lambda 不留住会被 GC。 */
     private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
-        refreshForgedSignatures()
+        refreshPending.set(true)
     }
 
     // ------------------------------------------------------------------ 生命周期
@@ -154,11 +166,22 @@ class MainHook : XposedModule() {
     /**
      * 伪造表查询（hook 热路径）。
      *
-     * 配置在进程启动后才被改的情况（用户改完没重启宿主）不会立刻生效，但这里做了
-     * 低频重试：只要伪造表还是空的，最多每 [REFRESH_INTERVAL_MS] 再读一次。
+     * 两件事在这里发生：
+     * 1. **合并刷新**：监听器只置位（[refreshPending]），真正的重建推迟到这里 ——
+     *    配置一批写完只重建一次，而不是每个键重建一次；
+     * 2. **空表兜底**：伪造表为空时按 [REFRESH_INTERVAL_MS] 低频重试，覆盖"hook
+     *    装好那刻远程 prefs 还没备好"的框架差异。
      */
     private fun lookupForged(packageName: String): String? {
-        if (forgedSignatures.isEmpty()) maybeRefreshForgedSignatures()
+        if (refreshPending.compareAndSet(true, false)) {
+            LogX.i(
+                "检测到配置变更，按需刷新伪造表",
+                "Config change detected; refreshing the forged table",
+            )
+            refreshForgedSignatures()
+        } else if (forgedSignatures.isEmpty()) {
+            maybeRefreshForgedSignatures()
+        }
         val hex = forgedSignatures[packageName] ?: return null
         if (loggedPackages.add(packageName)) {
             LogX.i(
