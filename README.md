@@ -3,38 +3,34 @@
 <p align="center">
   <a href="https://github.com/xiangfa-test/com.xiang.signhelper/releases"><img src="https://img.shields.io/github/v/release/xiangfa-test/com.xiang.signhelper?label=release&color=0aa1dd" alt="Release"></a>
   <a href="https://github.com/xiangfa-test/com.xiang.signhelper/releases"><img src="https://img.shields.io/github/downloads/xiangfa-test/com.xiang.signhelper/total?label=downloads&color=2ea44f" alt="Downloads"></a>
-  <a href="https://github.com/xiangfa-test/com.xiang.signhelper/stargazers"><img src="https://img.shields.io/github/stars/xiangfa-test/com.xiang.signhelper?label=stars&color=e3b341" alt="Stars"></a>
   <img src="https://img.shields.io/badge/license-GPL--3.0--only-8957e5" alt="License">
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Android-13%2B-3ddc84?logo=android&logoColor=white" alt="Android 13+">
   <img src="https://img.shields.io/badge/LSPosed-module-6f42c1" alt="LSPosed module">
-  <a href="https://t.me/onelazyfish"><img src="https://img.shields.io/badge/Telegram-MIKU%E7%9A%84%E5%B0%8F%E7%AA%9D-26A5E4?logo=telegram&logoColor=white" alt="Telegram 发布频道：MIKU的小窝"></a>
-  <a href="https://t.me/xiangfa_channel"><img src="https://img.shields.io/badge/Telegram-%E6%83%B3%E6%B3%95%E3%81%AE%E7%AA%9D-26A5E4?logo=telegram&logoColor=white" alt="Telegram 发布频道：想法の窝"></a>
+  <a href="https://t.me/onelazyfish"><img src="https://img.shields.io/badge/Telegram-MIKU%E7%9A%84%E5%B0%8F%E7%AA%9D-26A5E4?logo=telegram&logoColor=white" alt="Telegram"></a>
+  <a href="https://t.me/xiangfa_channel"><img src="https://img.shields.io/badge/Telegram-%E6%83%B3%E6%B3%95%E3%81%AE%E7%AA%9D-26A5E4?logo=telegram&logoColor=white" alt="Telegram"></a>
 </p>
 
-对**简单签名校验**通杀的 LSPosed 模块：被 hook 的应用通过 `PackageManager`
-读取列表里某个应用的签名时，返回模块里为该应用设置的伪造签名。
-
-- 基于 **libxposed API 102**（`minApiVersion=102`）
-- UI 使用 **Miuix**（Compose，澎湃 OS / MIUI 风格），只有「应用目录」「关于」两页
-- 默认作用域：微信 `com.tencent.mm`、QQ `com.tencent.mobileqq`，可在 LSPosed 里加任意应用
-- 作者：xiangfa；原版 `cn.xihan.sign` 作者：xihan
+让被 hook 的应用通过 `PackageManager` 读到的签名，变成你为它设置的伪造值。
+基于 libxposed API 102，界面用 Miuix；默认作用域微信 / QQ，可在 LSPosed 里加任意应用。
 
 ## 功能
 
-- **应用目录**：选择已安装应用 / 选择 APK 加入列表；条目展示原始签名、伪造签名与启用开关；
-  点击改签名，长按删除
-- **选择已安装应用**：独立二级页，带搜索、排序（名称 / 最后更新 / 反向）与范围（用户 / 系统 / 全部）
-- **Hook（两种拦截模式，设置里可切）**：
-  - **增强（默认）**：按语义覆盖 `getPackageInfo` / `getPackageInfoAsUser` 的 `String` 与
-    `VersionedPackage` 重载，命中时把 `PackageInfo.signatures` **与** `signingInfo` 一起替换，
-    并接管 `hasSigningCertificate` 的证书比对；伪造值支持多行（多签名）
-  - **原始**：只挂 `getPackageInfo(String,int)` 与 `getPackageInfo(String,PackageInfoFlags)`，
-    只替换 `signatures`，行为与 0.2.x 逐条一致，便于定位问题
-  - 异常全部 PROTECTIVE，不影响宿主；切换模式或改配置后需强制停止被 hook 的应用再打开
-- **关于页**：构建时间、作者、致谢（xihan / Miuix / libxposed / LSPosed）
+- **应用目录**：选已安装应用或 APK 加入列表，条目显示原始 / 伪造签名与开关；点击编辑，长按删除
+- **多签名应用**：自动识别多签名 APK 与签名轮换，进入专属详情页，逐张展示并按条数校验伪造值
+- **增强模式**（设置 → 行为，默认开）：`signatures` 与 `signingInfo` 一起替换，并接管
+  `hasSigningCertificate`、`asUser` / `VersionedPackage` 查询；关闭则回到只替换 `signatures` 的旧行为
+- 备份 / 恢复、OOBE、日志中英双语
+
+## 使用
+
+1. LSPosed 启用本模块，并勾选需要被 hook 的宿主应用
+2. 列表里加目标应用，填入伪造签名（十六进制，一行一条）
+3. 打开条目开关 → 强制停止宿主 → 重新打开
+
+> MIUI / HyperOS 等默认禁止读取应用列表时，模块会退回 intent 反查，并引导你授予「获取应用列表」。
 
 ## 构建
 
@@ -45,42 +41,18 @@
 ./gradlew :app:assembleRelease    # ~1.5 MB（R8 + 资源裁剪）
 ```
 
-- 依赖已包含 `maven-local/`（libxposed 102 的 api/interface/service），离线也能构建
-- 签名：在工程根目录放 `keystore.properties`（storeFile / storePassword / keyAlias / keyPassword），
-  debug 与 release 复用同一把；不配置则使用本地默认调试签名
-- 产物：`app/build/outputs/apk/{debug,release}/`
+依赖自带 `maven-local/`，可离线构建；签名读工程根目录的 `keystore.properties`，debug 与 release 复用同一把。
 
-## 使用
+## 配置键
 
-1. LSPosed 里启用本模块，并勾选需要被 hook 的应用（默认微信 / QQ）
-2. 应用目录里加目标应用（已安装应用或 APK），点条目填入伪造签名（十六进制）
-3. 打开条目开关 → 强制停止被 hook 的应用 → 重新打开
-4. 该应用再读取列表内应用的签名，拿到的就是伪造值
+`entries_json`（UI 条目）、`forged_packages`（生效包名，`\n` 分隔）、
+`sig:<包名>`（伪造签名，多行 = 多签名）、`hook_mode`（`enhanced` / `legacy`）。
 
-> 部分系统（MIUI / HyperOS 等）默认禁止应用读取已安装应用列表。未开启时本模块会退回到 intent 反查（列表可能不完整），并弹窗引导你打开系统「应用信息 → 权限」自行允许「获取应用列表 / 已安装应用」，允许后返回即可自动刷新。
+只读兼容上游 [SignHook](https://github.com/xihan123/SignHook) 的
+`fakeSignature$$<包名>` / `fakeSignatureEnabled$$<包名>`，同包名时以本模块的键为准。
 
-## 配置与数据
+## 其它
 
-模块界面写本地 `SharedPreferences`，同时通过 `XposedService.getRemotePreferences("signhelper_config")`
-同步给框架；注入进程只读该 remote prefs。键：
-
-- `entries_json`：完整条目（UI 用）
-- `forged_packages`：生效中的包名（`\n` 分隔）
-- `sig:<包名>`：该包的伪造签名（hex，多行 = 多签名）
-- `hook_mode`：拦截模式 `enhanced` / `legacy`（注入进程读取）
-
-另外**只读兼容**上游 [SignHook](https://github.com/xihan123/SignHook) 的键
-`fakeSignature$$<包名>` / `fakeSignatureEnabled$$<包名>`：同包名时以本模块的键为准，
-方便从上游迁移或手工搬配置。
-
-## 发布频道
-
-- Telegram 发布频道：https://t.me/onelazyfish（MIKU的小窝）
-- Telegram 发布频道：https://t.me/xiangfa_channel（想法の窝\[SFW\]）
-
-## License
-
-GPL-3.0（见 [LICENSE](LICENSE)）。
-
-
-
+- 发布频道：https://t.me/onelazyfish 、https://t.me/xiangfa_channel
+- 致谢：应用内「关于」页
+- License：GPL-3.0（见 [LICENSE](LICENSE)）
